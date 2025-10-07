@@ -1,0 +1,71 @@
+import pygame
+from widgets.button import Button
+
+class Options:
+    def __init__(self, game):
+        self.game = game
+        self.font = pygame.font.Font(None, 60)
+
+        # Cargar imagen de fondo
+        self.background = pygame.image.load("./resources/imgs/options_background.jpg").convert()
+
+        # Definimos los textos de los botones
+        self.buttons_data = [
+            "Edit User",
+            "Hall of Fame",
+            "Edit Playthrough",
+            "Add Players",
+            "Start Playthrough",
+            "Exit Game",
+        ]
+
+        # Creamos los botones
+        self.buttons = [
+            Button(text=txt, font=self.font, pos=(0, 0)) for txt in self.buttons_data
+        ]
+
+    def handle_events(self):
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                exit()
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_RETURN:
+                    self.game.change_state("LEVEL1")
+
+            # Pasar eventos a todos los botones
+            for b in self.buttons:
+                b.handle_event(event)
+
+    def update_layout(self, screen):
+        """Actualiza posiciones y tamaños según el tamaño de la pantalla."""
+        width, height = screen.get_size()
+        button_height = height // (len(self.buttons) + 2)
+        y_offset = button_height
+
+        for i, button in enumerate(self.buttons):
+            # Escalar el tamaño de fuente proporcionalmente
+            scale_factor = width / 800  # suponiendo 800 como ancho base
+            font_size = int(40 * scale_factor)
+            button.font = pygame.font.Font(None, font_size)
+
+            # Actualizar texto y tamaño
+            button.update_text(button.text)  # corregido: era uptdate_text
+
+            # Centrar horizontalmente
+            x = (width - button.width) // 2
+            y = y_offset + i * button_height
+            button.update_pos((x, y))
+
+    def update(self, dt):
+        pass
+
+    def draw(self, screen):
+        # Dibujar fondo escalado
+        background_scaled = pygame.transform.scale(self.background, screen.get_size())
+        screen.blit(background_scaled, (0, 0))
+
+        # Actualizar layout y dibujar botones
+        self.update_layout(screen)
+        for button in self.buttons:
+            button.draw(screen)
