@@ -1,7 +1,7 @@
 import pygame
 
 class UserInfo:
-    def __init__(self, font, pos, size, nombre="Disponible", foto="./resources/imgs/disponible.png", puntaje=0):
+    def __init__(self, font, pos, size, nombre="Available", foto="./resources/imgs/disponible.png", puntaje=0):
         self.font = font
         self.pos = pos  # (x, y)
         self.size:list = size  # (width, height)
@@ -42,7 +42,7 @@ class UserInfo:
 
         # Renderizar textos
         text_nombre = self.font.render(self.nombre, True, self.color_nombre)
-        text_puntaje = self.font.render(f"Puntaje: {self.puntaje}", True, self.color_puntaje)
+        text_puntaje = self.font.render(f"Score: {self.puntaje}", True, self.color_puntaje)
 
         # Posicionar textos centrados bajo la imagen
         nombre_rect = text_nombre.get_rect(center=(x + width // 2, img_rect.bottom + 15))

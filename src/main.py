@@ -2,6 +2,7 @@
 import pygame
 from screens.options import Options
 from screens.hall_fame import HallOfFame
+from screens.edit_playthrough import EditPlaythrough
 
 # pygame setup
 pygame.init()
@@ -12,7 +13,8 @@ class StateManager:
     def __init__(self):
         self.states = {
             "OPTIONS": Options(self),
-            "HALL_FAME": HallOfFame(self), 
+            "HALL_FAME": HallOfFame(self),
+            "EDIT_PLAYTHROUGH" : EditPlaythrough(self)
         }
         self.current_state = self.states["OPTIONS"]
 

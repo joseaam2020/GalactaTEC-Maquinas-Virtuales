@@ -28,6 +28,9 @@ class Options:
                 case "Hall of Fame":
                     on_click = self.game.change_state
                     args = "HALL_FAME"
+                case "Edit Playthrough":
+                    on_click = self.game.change_state
+                    args = "EDIT_PLAYTHROUGH"
             self.buttons.append(
                 Button(
                     text=txt,

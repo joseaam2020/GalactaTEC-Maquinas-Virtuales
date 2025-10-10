@@ -12,14 +12,14 @@ class HallOfFame:
         self.background = pygame.image.load("./resources/imgs/options_background.jpg").convert()
 
         # Texto principal
-        self.title_text = self.font_title.render("Salón de la Fama", True, (255, 215, 0))
+        self.title_text = self.font_title.render("Hall of Fame", True, (255, 215, 0))
         self.title_rect = self.title_text.get_rect()
 
         # Widgets de usuarios (5 en total)
         self.users = [UserInfo(self.font_user, (0, 0), (120, 120)) for _ in range(6)]
 
         # Botón de salida
-        self.exit_button = Button("Salir", (0, 0), pygame.font.Font(None, 50), on_click=self.game.change_state, args="OPTIONS")
+        self.exit_button = Button("Return", (0, 0), pygame.font.Font(None, 50), on_click=self.game.change_state, args="OPTIONS")
 
     def handle_events(self):
         for event in pygame.event.get():
@@ -42,7 +42,7 @@ class HallOfFame:
         self.font_user = pygame.font.Font(None, user_font_size)
 
         # Actualizar título centrado arriba
-        self.title_text = self.font_title.render("Salón de la Fama", True, (255, 215, 0))
+        self.title_text = self.font_title.render("Hall of fame", True, (255, 215, 0))
         self.title_rect = self.title_text.get_rect(center=(width // 2, height * 0.1))
 
         # Dimensiones de los widgets
@@ -87,7 +87,7 @@ class HallOfFame:
         # Posicionar botón de salida en esquina inferior derecha
         button_padding = 20
         self.exit_button.font = pygame.font.Font(None, int(50 * scale_factor))
-        self.exit_button.update_text("Salir")
+        self.exit_button.update_text("Return")
         self.exit_button.update_pos((
             width - self.exit_button.width - button_padding,
             height - self.exit_button.height - button_padding
