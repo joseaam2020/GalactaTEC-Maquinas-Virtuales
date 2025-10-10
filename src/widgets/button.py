@@ -2,11 +2,12 @@ import pygame
 
 # Clase Botón
 class Button:
-    def __init__(self, text, pos, font, on_click=None):
+    def __init__(self, text, pos, font, on_click=None,args=None):
         self.text = text
         self.font = font
         self.on_click = on_click
         self.selected = False
+        self.args = args
 
         # Crear sonido
         try:
@@ -69,7 +70,10 @@ class Button:
         if self.click_sound:
             self.click_sound.play()
         if self.on_click:
-            self.on_click()
+            if self.args:
+                self.on_click(self.args)
+            else:
+                self.on_click()
 
     def update_text(self, text):
         self.text = text

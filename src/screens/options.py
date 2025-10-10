@@ -20,9 +20,23 @@ class Options:
         ]
 
         # Creamos los botones
-        self.buttons = [
-            Button(text=txt, font=self.font, pos=(0, 0)) for txt in self.buttons_data
-        ]
+        self.buttons = []
+        for txt in self.buttons_data:
+            on_click = None
+            args = None
+            match txt:
+                case "Hall of Fame":
+                    on_click = self.game.change_state
+                    args = "HALL_FAME"
+            self.buttons.append(
+                Button(
+                    text=txt,
+                    font=self.font,
+                    pos=(0, 0),
+                    on_click=on_click,
+                    args=args
+                )
+            )
 
     def handle_events(self):
         for event in pygame.event.get():
