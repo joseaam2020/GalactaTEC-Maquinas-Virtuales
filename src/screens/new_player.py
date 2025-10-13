@@ -115,19 +115,19 @@ class RegisterWindow:
                         self.game.change_state("MAIN_MENU")
 
     def select_profile_picture(self):
-        """Simula la selección de una fotografía"""
+        #Simula la selección de una fotografía
         # En una aplicación real, aquí abrirías un diálogo de archivos
         self.selected_profile_pic = "avatar.png"  # Ejemplo
         print("Seleccionar fotografía del perfil")
 
     def select_ship_image(self):
-        """Simula la selección de una imagen de nave"""
+        #Simula la selección de una imagen de nave
         # En una aplicación real, aquí abrirías un diálogo de archivos
         self.selected_ship = "ship_red.png"  # Ejemplo
         print("Seleccionar imagen de nave")
 
     def attempt_register(self):
-        """Intenta registrar el nuevo jugador"""
+        #Intenta registrar el nuevo jugador
         if self.username and self.full_name and self.email:
             # Aquí iría la lógica de registro en la base de datos
             print(f"Registrando jugador: {self.username}")
@@ -167,33 +167,34 @@ class RegisterWindow:
         field_spacing = height // 25  # Menos espacio entre campos
         
         # Posicionar campos de texto
-        center_x = width // 2 - field_width // 2
+        left_margin = width // 15  # margen desde el borde izquierdo
+        center_x = left_margin
         
         # Campos de texto
         self.username_rect = pygame.Rect(
             center_x, 
-            title_y + field_spacing * 2,
+            title_y + field_spacing * 3,
             field_width, 
             field_height
         )
         
         self.full_name_rect = pygame.Rect(
             center_x, 
-            title_y + field_spacing * 3.5,
+            title_y + field_spacing * 6,
             field_width, 
             field_height
         )
         
         self.email_rect = pygame.Rect(
             center_x, 
-            title_y + field_spacing * 5,
+            title_y + field_spacing * 9,
             field_width, 
             field_height
         )
         
         self.favorite_music_rect = pygame.Rect(
             center_x, 
-            title_y + field_spacing * 6.5,
+            title_y + field_spacing * 12,
             field_width, 
             field_height
         )
@@ -202,14 +203,14 @@ class RegisterWindow:
         file_field_width = field_width
         self.profile_pic_rect = pygame.Rect(
             center_x, 
-            title_y + field_spacing * 8,
+            title_y + field_spacing * 15,
             file_field_width, 
             field_height
         )
         
         self.ship_rect = pygame.Rect(
             center_x, 
-            title_y + field_spacing * 9.5,
+            title_y + field_spacing * 18,
             file_field_width, 
             field_height
         )
@@ -218,10 +219,34 @@ class RegisterWindow:
         button_width = field_width // 2
         button_start_y = self.ship_rect.bottom + field_spacing
         
-        self.buttons[0].update_pos((center_x, button_start_y))  # Register
-        self.buttons[1].update_pos((center_x + button_width + 20, title_y + field_spacing * 8))  # Select Photo
-        self.buttons[2].update_pos((center_x + button_width + 20, title_y + field_spacing * 9.5))  # Select Ship
-        self.buttons[3].update_pos((center_x, button_start_y + field_height + 20))  # Back
+       
+        self.buttons[1].update_pos((self.profile_pic_rect.right + 20, self.profile_pic_rect.y - 5))  # Select Photo
+        self.buttons[2].update_pos((self.ship_rect.right + 20, self.ship_rect.y - 5))  # Select Ship
+
+       # Para posicionar los botones de Register y Back
+        # Obtener tamaño de la pantalla
+        width, height = screen.get_size()
+
+        # Tamaño de los botones (ya definido por Button)
+        register_button = self.buttons[0]
+        back_button = self.buttons[3]
+
+        # Margen desde el borde
+        margin_x, margin_y = -10, 30
+
+        # Posiciones: esquina inferior derecha
+        register_x = width - register_button.width - margin_x
+        register_y = height - register_button.height - margin_y
+
+        # Ahora: poner el botón Back en la esquina inferior derecha
+        self.buttons[3].update_pos((register_x, register_y))
+
+        # Y el botón Register justo a la izquierda del Back
+        spacing = 20
+        register_left_x = register_x - register_button.width - spacing
+        register_left_y = register_y
+        self.buttons[0].update_pos((register_left_x, register_left_y))
+ 
 
     def draw(self, screen):
         # Dibujar fondo escalado

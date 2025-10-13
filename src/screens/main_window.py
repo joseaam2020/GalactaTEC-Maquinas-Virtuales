@@ -148,6 +148,9 @@ class main_window:
         # Asignar función al botón Sign in
         self.buttons[0].on_click = lambda: self.game.change_state("OPTIONS")
 
+         # Funcionalidad del botón Add Players, que es registrar a un nuevo jugador
+        self.buttons[1].on_click = lambda: self.game.change_state("REGISTER")
+
         #"Recover password": pos=(320, 560), size=(253, 45)
         #Botón "Back": pos=(660, 560), size=(97, 44)
         #Botón "Sign in": pos=(838, 430), size=(123, 46)
