@@ -24,6 +24,9 @@ class Options:
             Button(text=txt, font=self.font, pos=(0, 0)) for txt in self.buttons_data
         ]
 
+        # Funcionalidad del botón Add Players, que es registrar a un nuevo jugador
+        self.buttons[3].on_click = lambda: self.game.change_state("REGISTER")
+
     def handle_events(self):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
