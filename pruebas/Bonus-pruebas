@@ -86,7 +86,7 @@ class Jugador:
                 self.vida += 1
         elif tipo == "doble_puntos":
             self.doble_puntos = True
-            self.doble_puntos_fin = time.time() + 60
+            self.doble_puntos_fin = time.time() + 15
         elif tipo == "escudo":
             self.escudo = 3
 
