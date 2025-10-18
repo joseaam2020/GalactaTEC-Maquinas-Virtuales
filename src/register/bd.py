@@ -1,0 +1,160 @@
+import sqlite3
+from datetime import datetime
+import bcrypt
+
+# Conecta o crea la base de datos local
+conn = sqlite3.connect("GalactaDB.db")
+cursor = conn.cursor()
+
+# ----------------------------------------------------------
+# 🔹 Crear tabla si no existe
+# ----------------------------------------------------------
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS players (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT UNIQUE NOT NULL,
+    full_name TEXT NOT NULL,
+    email TEXT UNIQUE NOT NULL,
+    password_hash BLOB NOT NULL,
+    photo_path TEXT,
+    ship_image TEXT,
+    music_pref TEXT,
+    created_at TEXT
+)
+               
+               
+""")
+conn.commit()
+
+
+# ----------------------------------------------------------
+# 🔹 Crear tabla de puntajes
+# ----------------------------------------------------------
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS scores (
+    id_score INTEGER PRIMARY KEY AUTOINCREMENT,
+    player_id INTEGER NOT NULL,
+    score INTEGER NOT NULL,
+    created_at TEXT,
+    FOREIGN KEY (player_id) REFERENCES players(id)
+)
+""")
+conn.commit()
+
+
+# ----------------------------------------------------------
+# 🔹 Registrar jugador
+# ----------------------------------------------------------
+def register_player(username, full_name, email, password, photo_path, ship_image, music_pref):
+    try:
+        password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
+        cursor.execute("""
+            INSERT INTO players (username, full_name, email, password_hash, photo_path, ship_image, music_pref, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (username, full_name, email, password_hash, photo_path, ship_image, music_pref, datetime.utcnow().isoformat()))
+        conn.commit()
+        print("✅ Jugador registrado correctamente.")
+        return True
+    except sqlite3.IntegrityError as e:
+        print("❌ Error: El nombre de usuario o correo ya existen.")
+        return False
+    except Exception as e:
+        print("❌ Error al registrar:", e)
+        return False
+
+# ----------------------------------------------------------
+# 🔹 Login
+# ----------------------------------------------------------
+def login_player(username_or_email, password):
+    cursor.execute("""
+        SELECT username, password_hash FROM players WHERE username = ? OR email = ?
+    """, (username_or_email, username_or_email))
+    result = cursor.fetchone()
+    if result:
+        username, stored_hash = result
+        if bcrypt.checkpw(password.encode('utf-8'), stored_hash):
+            print(f"✅ Bienvenido, {username}!")
+            return username
+        else:
+            print("❌ Contraseña incorrecta.")
+    else:
+        print("❌ Usuario no encontrado.")
+    return None
+
+# ----------------------------------------------------------
+# 🔹 Actualizar datos del jugador
+# ----------------------------------------------------------
+def update_player(username, **updates):
+    allowed = {"full_name", "email", "photo_path", "ship_image", "music_pref"}
+    fields = []
+    values = []
+    for key, value in updates.items():
+        if key in allowed:
+            fields.append(f"{key} = ?")
+            values.append(value)
+    if not fields:
+        print("⚠️ No hay datos válidos para actualizar.")
+        return False
+    values.append(username)
+    query = f"UPDATE players SET {', '.join(fields)} WHERE username = ?"
+    cursor.execute(query, values)
+    conn.commit()
+    print("✅ Datos actualizados correctamente.")
+    return True
+
+# ----------------------------------------------------------
+# 🔹 Mostrar todos (solo para depuración)
+# ----------------------------------------------------------
+def show_all_players():
+    cursor.execute("SELECT username, full_name, email, photo_path, ship_image, music_pref FROM players")
+    for row in cursor.fetchall():
+        print(row)
+
+# ----------------------------------------------------------
+# 🔹 Guardar un puntaje
+# ----------------------------------------------------------
+def add_score(username, score):
+    try:
+        # Obtener el id del jugador por su username
+        cursor.execute("SELECT id FROM players WHERE username = ?", (username,))
+        result = cursor.fetchone()
+        
+        if not result:
+            print("❌ Jugador no encontrado.")
+            return False
+        
+        player_id = result[0]
+        
+        # Insertar el puntaje
+        cursor.execute("""
+            INSERT INTO scores (player_id, score, created_at)
+            VALUES (?, ?, ?)
+        """, (player_id, score, datetime.utcnow().isoformat()))
+        
+        conn.commit()
+        print(f"✅ Puntaje {score} guardado para el jugador '{username}'.")
+        return True
+    
+    except Exception as e:
+        print("❌ Error al guardar puntaje:", e)
+        return False
+
+# ----------------------------------------------------------
+# 🔹 Mostrar puntajes de un jugador
+# ----------------------------------------------------------
+def show_scores(username):
+    cursor.execute("""
+        SELECT p.username, s.score, s.created_at
+        FROM scores s
+        JOIN players p ON s.player_id = p.id
+        WHERE p.username = ?
+        ORDER BY s.created_at DESC
+    """, (username,))
+    
+    results = cursor.fetchall()
+    if not results:
+        print("⚠️ No hay puntajes registrados para este jugador.")
+    else:
+        print(f"🏆 Puntajes de {username}:")
+        for row in results:
+            print(f"  → {row[1]} puntos ({row[2]})")

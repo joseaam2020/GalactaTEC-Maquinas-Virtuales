@@ -1,6 +1,8 @@
 # Example file showing a basic pygame "game loop"
 import pygame
 from screens.options import Options
+from screens.main_window import main_window
+from screens.new_player import RegisterWindow
 from screens.hall_fame import HallOfFame
 from screens.edit_playthrough import EditPlaythrough
 
@@ -12,11 +14,13 @@ clock = pygame.time.Clock()
 class StateManager:
     def __init__(self):
         self.states = {
+            "MAIN": main_window(self),
             "OPTIONS": Options(self),
+            "REGISTER": RegisterWindow(self),
             "HALL_FAME": HallOfFame(self),
             "EDIT_PLAYTHROUGH" : EditPlaythrough(self)
         }
-        self.current_state = self.states["OPTIONS"]
+        self.current_state = self.states["MAIN"]  # arranca en login
 
     def change_state(self, new_state):
         if new_state in self.states:
