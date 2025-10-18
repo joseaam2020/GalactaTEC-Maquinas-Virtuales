@@ -20,9 +20,26 @@ class Options:
         ]
 
         # Creamos los botones
-        self.buttons = [
-            Button(text=txt, font=self.font, pos=(0, 0)) for txt in self.buttons_data
-        ]
+        self.buttons = []
+        for txt in self.buttons_data:
+            on_click = None
+            args = None
+            match txt:
+                case "Hall of Fame":
+                    on_click = self.game.change_state
+                    args = "HALL_FAME"
+                case "Edit Playthrough":
+                    on_click = self.game.change_state
+                    args = "EDIT_PLAYTHROUGH"
+            self.buttons.append(
+                Button(
+                    text=txt,
+                    font=self.font,
+                    pos=(0, 0),
+                    on_click=on_click,
+                    args=args
+                )
+            )
 
         # Funcionalidad del botón Add Players, que es registrar a un nuevo jugador
         self.buttons[3].on_click = lambda: self.game.change_state("REGISTER")
