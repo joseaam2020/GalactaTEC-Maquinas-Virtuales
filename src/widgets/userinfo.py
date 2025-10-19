@@ -1,19 +1,19 @@
 import pygame
 
 class UserInfo:
-    def __init__(self, font, pos, size, nombre="Available", foto="./resources/imgs/disponible.png", puntaje=0):
+    def __init__(self, font, pos, size, name="Available", photo="./resources/imgs/disponible.png", score=0):
         self.font = font
         self.pos = pos  # (x, y)
         self.size:list = size  # (width, height)
-        self.nombre = nombre
-        self.puntaje = puntaje
+        self.name = name
+        self.score = score
 
         # Cargar imagen del usuario
         try:
-            self.image = pygame.image.load(foto).convert_alpha()
+            self.image = pygame.image.load(photo).convert_alpha()
             self.image = pygame.transform.smoothscale(self.image, size)
         except pygame.error:
-            print(f"Error cargando imagen: {foto}")
+            print(f"Error cargando imagen: {photo}")
             self.image = pygame.Surface(size)
             self.image.fill((100, 100, 100))  # Fallback gris
 
@@ -21,8 +21,8 @@ class UserInfo:
         self.rect = pygame.Rect(pos[0], pos[1], size[0], size[1])
 
         # Colores de texto
-        self.color_nombre = (255, 255, 255)
-        self.color_puntaje = (200, 200, 0)
+        self.color_name = (255, 255, 255)
+        self.color_score = (200, 200, 0)
 
         # Fondo opcional (puedes personalizarlo)
         self.bg_color = (40, 40, 40)
@@ -41,29 +41,29 @@ class UserInfo:
         surface.blit(self.image, img_rect)
 
         # Renderizar textos
-        text_nombre = self.font.render(self.nombre, True, self.color_nombre)
-        text_puntaje = self.font.render(f"Score: {self.puntaje}", True, self.color_puntaje)
+        text_name = self.font.render(self.name, True, self.color_name)
+        text_score = self.font.render(f"Score: {self.score}", True, self.color_score)
 
         # Posicionar textos centrados bajo la imagen
-        nombre_rect = text_nombre.get_rect(center=(x + width // 2, img_rect.bottom + 15))
-        puntaje_rect = text_puntaje.get_rect(center=(x + width // 2, nombre_rect.bottom + 10))
+        name_rect = text_name.get_rect(center=(x + width // 2, img_rect.bottom + 25))
+        score_rect = text_score.get_rect(center=(x + width // 2, name_rect.bottom + 10))
 
         # Dibujar textos
-        surface.blit(text_nombre, nombre_rect)
-        surface.blit(text_puntaje, puntaje_rect)
+        surface.blit(text_name, name_rect)
+        surface.blit(text_score, score_rect)
 
-    def update_info(self, nombre=None, foto=None, puntaje=None):
+    def update_info(self, name=None, photo=None, score=None):
         """Permite actualizar la información del widget dinámicamente."""
-        if nombre is not None:
-            self.nombre = nombre
-        if puntaje is not None:
-            self.puntaje = puntaje
-        if foto is not None:
+        if name is not None:
+            self.name = name
+        if score is not None:
+            self.score = score
+        if photo is not None:
             try:
-                self.image = pygame.image.load(foto).convert_alpha()
+                self.image = pygame.image.load(photo).convert_alpha()
                 self.image = pygame.transform.smoothscale(self.image, self.size)
             except pygame.error:
-                print(f"Error actualizando imagen: {foto}")
+                print(f"Error actualizando imagen: {photo}")
 
     def update_pos(self, pos):
         """Mueve el widget a una nueva posición."""

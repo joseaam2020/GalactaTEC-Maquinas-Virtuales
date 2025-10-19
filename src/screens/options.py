@@ -31,6 +31,9 @@ class Options:
                 case "Edit Playthrough":
                     on_click = self.game.change_state
                     args = "EDIT_PLAYTHROUGH"
+                case "Exit Game":
+                    on_click = self.exit_game
+                    args = None
             self.buttons.append(
                 Button(
                     text=txt,
@@ -79,6 +82,10 @@ class Options:
 
     def update(self, dt):
         pass
+
+    def exit_game(self):
+        pygame.quit()
+        exit()
 
     def draw(self, screen):
         # Dibujar fondo escalado

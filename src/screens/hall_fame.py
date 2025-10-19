@@ -1,12 +1,14 @@
 import pygame
+from widgets import button
 from widgets.button import Button
 from widgets.userinfo import UserInfo
+from register.bd import get_top_6_scores
 
 class HallOfFame:
     def __init__(self, game):
         self.game = game
         self.font_title = pygame.font.Font(None, 80)
-        self.font_user = pygame.font.Font(None, 20)
+        self.font_user = pygame.font.Font(None, 16)
 
         # Fondo
         self.background = pygame.image.load("./resources/imgs/options_background.jpg").convert()
@@ -15,8 +17,23 @@ class HallOfFame:
         self.title_text = self.font_title.render("Hall of Fame", True, (255, 215, 0))
         self.title_rect = self.title_text.get_rect()
 
+        scores = get_top_6_scores("./src/register/GalactaDB.db")
+
         # Widgets de usuarios (5 en total)
-        self.users = [UserInfo(self.font_user, (0, 0), (120, 120)) for _ in range(6)]
+        self.users = []
+        for player in scores:
+            self.users.append(
+                    UserInfo(
+                        font=self.font_user,
+                        pos=(0,0),
+                        size=(120,120),
+                        name=player,
+                        photo=("./" + scores[player]['img_path']),
+                        score=scores[player]['score']
+                        ))
+
+        for _ in range(6 - len(scores)):
+            self.users.append(UserInfo(self.font_user, (0, 0), (120, 120)))
 
         # Botón de salida
         self.exit_button = Button("Return", (0, 0), pygame.font.Font(None, 50), on_click=self.game.change_state, args="OPTIONS")
@@ -36,7 +53,7 @@ class HallOfFame:
         # Escalar fuentes proporcionalmente
         scale_factor = width / 800
         title_size = int(80 * scale_factor)
-        user_font_size = int(40 * scale_factor)
+        user_font_size = int(30 * scale_factor)
 
         self.font_title = pygame.font.Font(None, title_size)
         self.font_user = pygame.font.Font(None, user_font_size)
@@ -49,11 +66,11 @@ class HallOfFame:
         user_width = int(150 * scale_factor)
         user_height = int(150 * scale_factor)
         spacing_x = int(user_width * 0.3)
-        spacing_y = int(user_height * 1.1)
+        spacing_y = int(user_height * 0.8)
 
         # Coordenadas base (centro)
         center_x = width // 2
-        start_y = int(height * 0.30)
+        start_y = int(height * 0.35)
 
         # Distribución piramidal
         positions = [
