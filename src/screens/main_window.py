@@ -2,6 +2,8 @@ import pygame
 from widgets.button import Button
 from widgets.textinput import TextInput 
 from register.bd import login_player
+from widgets.helpbutton import HelpButton
+#from options import Options
 
 class main_window:
 
@@ -68,7 +70,20 @@ class main_window:
 
             
 
-    # ---------------- EVENTOS ----------------
+    
+        # Boton de ayuda
+        help_text = (
+            "Welcome to the game!\n\n"
+            "This is the sign-in screen where you can:\n\n"
+            "- Enter your username and password to log in.\n\n"
+            "- Click 'Sign in' to log in if your credentials are correct.\n\n"
+            "- Click 'New player' to register a new account.\n\n"
+            "- Click 'Recover password' if you've forgotten your password.\n\n"
+            "Use the keyboard to type in your information.\n"
+        )
+        self.help_button = HelpButton(font=self.font, title="Sign in",text=help_text,pos=(0,0),screen_size=[])
+
+   # ---------------- EVENTOS ----------------
     def handle_events(self):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -83,6 +98,8 @@ class main_window:
             if event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
                 if self.password_input.active:
                     self.attempt_login()
+            # Pasar eventos a boton de ayuda
+            self.help_button.handle_event(event)
 
             # Pasar eventos a botones
             for b in self.buttons:
@@ -160,6 +177,14 @@ class main_window:
             width - self.buttons[3].width - button_padding,
             height - self.buttons[3].height - button_padding
         ))
+        
+       
+        # Boton de ayuda
+        margin = 20  # margen desde los bordes
+        final_x = margin
+        final_y = height - self.help_button.height - margin
+        self.help_button.screen_size = [width,height]
+        self.help_button.update_pos([final_x,final_y])
 
     # ---------------- DIBUJADO ----------------
     def draw(self, screen):
@@ -222,6 +247,9 @@ class main_window:
         self.error_duration = duration
 
             
+
+        # Dibujar boton de ayuda
+        self.help_button.draw(screen)
 
     def update(self, dt):
         pass

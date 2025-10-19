@@ -22,15 +22,15 @@ import screens.main_window
 #    music_pref TEXT,
 #    created_at TEXT
 #)
-               
-               
+#               
+#               
 #""")
 #conn.commit()
-
-
-# ----------------------------------------------------------
-# 🔹 Crear tabla de puntajes
-# ----------------------------------------------------------
+#
+#
+## ----------------------------------------------------------
+## 🔹 Crear tabla de puntajes
+## ----------------------------------------------------------
 #cursor.execute("""
 #CREATE TABLE IF NOT EXISTS scores (
 #    id_score INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -172,3 +172,41 @@ def show_scores(username):
         print(f"🏆 Puntajes de {username}:")
         for row in results:
             print(f"  → {row[1]} puntos ({row[2]})")
+
+def get_top_6_scores(db_path):
+    """
+    Obtiene la puntuación más alta de cada jugador y devuelve los 5 mejores como un diccionario.
+
+    Args:
+        db_path (str): Ruta al archivo de base de datos SQLite (.db).
+
+    Returns:
+        Dict[str, Dict[str, Any]]: Diccionario donde la clave es el nombre del jugador y el valor es otro diccionario
+        con su 'puntaje' y la 'direccion_imagen' (photo_path).
+    """
+    # Conexión a la base de datos
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    # Consulta para obtener top 5 con nombre y foto
+    cursor.execute("""
+        SELECT p.username, MAX(s.score) AS max_score, p.photo_path
+        FROM scores s
+        JOIN players p ON s.player_id = p.id
+        GROUP BY s.player_id
+        ORDER BY max_score DESC
+        LIMIT 6;
+    """)
+
+    # Convertimos los resultados a un diccionario
+    top_scores = {}
+    for username, max_score, photo_path in cursor.fetchall():
+        top_scores[username] = {
+            "score": max_score,
+            "img_path": photo_path
+        }
+
+    # Cerrar conexión
+    conn.close()
+
+    return top_scores

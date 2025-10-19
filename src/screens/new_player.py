@@ -1,4 +1,5 @@
 import pygame
+from widgets.helpbutton import HelpButton
 from widgets.button import Button
 from widgets.textinput import TextInput
 
@@ -53,7 +54,26 @@ class RegisterWindow:
             )
 
 
-    # =================== EVENTOS ===================
+        # Boton de ayuda
+        help_text = (
+            "New Player Registration\n\n"
+            "Use this form to create your player profile.\n\n"
+            "Fields:\n"
+            "- Username: Choose a unique name you'll use to sign in.\n"
+            "- Full Name: Enter your real or display name.\n"
+            "- Email: Provide a valid email for recovery purposes.\n"
+            "You can also select:\n"
+            "- Profile Picture: Click the field or the 'Select Photo' button to choose an avatar.\n"
+            "- Custom Ship: Click the field or the 'Select Ship' button to choose your spaceship image.\n\n"
+            "Buttons:\n"
+            "- Register: Submit the form and create your player account.\n"
+            "- Back: Return to the main menu without saving.\n\n"
+            "Make sure all required fields are filled in.\n"
+        )
+
+        self.help_button = HelpButton(font=self.font, title="Registration",text=help_text,pos=(0,0),screen_size=[])
+
+   # =================== EVENTOS ===================
     def handle_events(self):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -71,7 +91,11 @@ class RegisterWindow:
                 b.handle_event(event)
 
 
-    # =================== FUNCIONES DE ARCHIVO ===================
+    
+            # Pasar eventos a boton de ayuda
+            self.help_button.handle_event(event)
+        
+# =================== FUNCIONES DE ARCHIVO ===================
     def select_profile_picture(self):
         # Simula la selección de una fotografía
         self.selected_profile_pic = "avatar.png"
@@ -164,9 +188,14 @@ class RegisterWindow:
         spacing = 20
         register_left_x = register_x - register_button.width - spacing
         register_left_y = register_y
-        register_button.update_pos((register_left_x, register_left_y))
-
-        
+        register_button.update_pos((register_left_x, register_left_y)
+ 
+        # Boton de ayuda
+        margin = 20  # margen desde los bordes
+        final_x = margin
+        final_y = height - self.help_button.height - margin
+        self.help_button.screen_size = [width,height]
+        self.help_button.update_pos([final_x,final_y])
 
     # =================== DIBUJO ===================
     def draw(self, screen):
@@ -215,6 +244,9 @@ class RegisterWindow:
         # Dibujar botones
         for button in self.buttons:
             button.draw(screen)
+
+        # Dibujar boton de ayuda
+        self.help_button.draw(screen)
 
     def update(self, dt):
         pass
