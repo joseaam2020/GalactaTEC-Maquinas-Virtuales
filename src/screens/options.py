@@ -1,5 +1,6 @@
 import pygame
 from widgets.button import Button
+from screens.main_window import main_window
 from widgets.helpbutton import HelpButton
 
 class Options:
@@ -32,6 +33,9 @@ class Options:
                 case "Edit Playthrough":
                     on_click = self.game.change_state
                     args = "EDIT_PLAYTHROUGH"
+                case "Add Players":
+                    on_click = self.on_sign_in
+                    args = "MAIN"
                 case "Exit Game":
                     on_click = self.exit_game
                     args = None
@@ -45,8 +49,6 @@ class Options:
                 )
             )
 
-        # Funcionalidad del botón Add Players, que es registrar a un nuevo jugador
-        self.buttons[3].on_click = lambda: self.game.change_state("REGISTER")
 
         # Boton de ayuda
         help_text = (
@@ -124,6 +126,12 @@ class Options:
         self.update_layout(screen)
         for button in self.buttons:
             button.draw(screen)
-
-        # Dibujar boton de ayuda
+            
+         # Dibujar boton de ayuda
         self.help_button.draw(screen)
+
+    def on_sign_in(self, args):
+        if not main_window.signed_in:
+            main_window.signed_in = True 
+        self.game.change_state(args)
+        
