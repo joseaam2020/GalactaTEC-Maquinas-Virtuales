@@ -237,6 +237,8 @@ class main_window:
                 del self.error_message  # borrar mensaje tras tiempo
 
     
+        # Dibujar boton de ayuda
+        self.help_button.draw(screen)
 
     def show_error(self, message, duration=2000):
         """
@@ -248,8 +250,6 @@ class main_window:
 
             
 
-        # Dibujar boton de ayuda
-        self.help_button.draw(screen)
 
     def update(self, dt):
         pass

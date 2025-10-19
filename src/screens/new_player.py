@@ -188,7 +188,7 @@ class RegisterWindow:
         spacing = 20
         register_left_x = register_x - register_button.width - spacing
         register_left_y = register_y
-        register_button.update_pos((register_left_x, register_left_y)
+        register_button.update_pos((register_left_x, register_left_y))
  
         # Boton de ayuda
         margin = 20  # margen desde los bordes
