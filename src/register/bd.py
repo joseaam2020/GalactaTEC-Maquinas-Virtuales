@@ -3,8 +3,8 @@ from datetime import datetime
 import bcrypt
 
 # Conecta o crea la base de datos local
-conn = sqlite3.connect("GalactaDB.db")
-cursor = conn.cursor()
+#conn = sqlite3.connect("GalactaDB.db")
+#cursor = conn.cursor()
 
 # ----------------------------------------------------------
 # 🔹 Crear tabla si no existe
