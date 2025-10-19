@@ -1,4 +1,5 @@
 import pygame
+from widgets.filedialog import FileDialog
 from widgets.helpbutton import HelpButton
 from widgets.button import Button
 from widgets.textinput import TextInput
@@ -24,7 +25,7 @@ class RegisterWindow:
         self.selected_ship = "No seleccionada"
 
         # Botones
-        self.buttons_data = ["Register", "Select Photo", "Select Ship", "Return"]
+        self.buttons_data = ["Register", "Select Ship", "Return"]
         # Creamos los botones
         self.buttons = []
         for txt in self.buttons_data:
@@ -34,9 +35,6 @@ class RegisterWindow:
                 case "Register":
                     on_click = self.game.change_state
                     args = "OPTIONS"
-                case "Select Photo":
-                    on_click = self.game.change_state
-                    args = ""
                 case "Select Ship":
                     on_click = self.game.change_state
                     args = ""
@@ -52,6 +50,15 @@ class RegisterWindow:
                     args=args
                 )
             )
+
+        self.buttons.append(
+                FileDialog(
+                    text="Select Photo",
+                    font=self.small_font,
+                    pos=(0,0),
+                    on_select=self.select_profile_picture
+                )
+        )
 
 
         # Boton de ayuda
@@ -80,25 +87,27 @@ class RegisterWindow:
                 pygame.quit()
                 exit()
 
-            # Pasar eventos a los campos de texto
-            self.username_field.handle_event(event)
-            self.fullname_field.handle_event(event)
-            self.email_field.handle_event(event)
-            self.music_field.handle_event(event)
+            modal_visible: bool = self.buttons[3].modal_visible
+            if(not modal_visible):
+                # Pasar eventos a los campos de texto
+                self.username_field.handle_event(event)
+                self.fullname_field.handle_event(event)
+                self.email_field.handle_event(event)
+                self.music_field.handle_event(event)
 
-            # Pasar eventos a los botones
-            for b in self.buttons:
-                b.handle_event(event)
-
-
-    
-            # Pasar eventos a boton de ayuda
-            self.help_button.handle_event(event)
+                # Pasar eventos a los botones
+                for b in self.buttons:
+                    b.handle_event(event)
+        
+                # Pasar eventos a boton de ayuda
+                self.help_button.handle_event(event)
+            else:
+                self.buttons[3].handle_event(event)
         
 # =================== FUNCIONES DE ARCHIVO ===================
-    def select_profile_picture(self):
+    def select_profile_picture(self,img_path):
         # Simula la selección de una fotografía
-        self.selected_profile_pic = "avatar.png"
+        self.selected_profile_pic = img_path
         print("Seleccionar fotografía del perfil")
 
     def select_ship_image(self):
@@ -129,8 +138,8 @@ class RegisterWindow:
         width, height = screen.get_size()
         scale_factor = width / 800
         title_font_size = int(60 * scale_factor)
-        field_font_size = int(36 * scale_factor)
-        button_font_size = int(32 * scale_factor)
+        field_font_size = int(28 * scale_factor)
+        button_font_size = int(26 * scale_factor)
 
         self.font = pygame.font.Font(None, title_font_size)
         self.small_font = pygame.font.Font(None, field_font_size)
@@ -173,12 +182,13 @@ class RegisterWindow:
         button_start_y = self.ship_rect.bottom + field_spacing
 
         # Botones de selección de archivo
-        self.buttons[1].update_pos((self.profile_pic_rect.right + 20, self.profile_pic_rect.y - 5))  # Select Photo
-        self.buttons[2].update_pos((self.ship_rect.right + 20, self.ship_rect.y - 5))  # Select Ship
+        self.buttons[3].update_pos((self.profile_pic_rect.right + 20, self.profile_pic_rect.y - 5))  # Select Photo
+        self.buttons[3].update_screen_size(screen.get_size())  # Select Photo
+        self.buttons[1].update_pos((self.ship_rect.right + 20, self.ship_rect.y - 5))  # Select Ship
 
         # Botones inferiores (Register y Back)
         register_button = self.buttons[0]
-        back_button = self.buttons[3]
+        back_button = self.buttons[2]
         margin_x, margin_y = -10, 30
 
         register_x = width - register_button.width - margin_x
@@ -232,14 +242,24 @@ class RegisterWindow:
         self.music_field.draw(screen)
 
         # Campos de selección de archivos
-        file_fields = [
-            (self.profile_pic_rect, self.selected_profile_pic),
-            (self.ship_rect, self.selected_ship)
-        ]
-        for rect, text in file_fields:
-            pygame.draw.rect(screen, (200, 200, 200), rect, 2)
-            text_surface = self.small_font.render(text, True, (150, 150, 150))
-            screen.blit(text_surface, (rect.x + 5, rect.y + 5))
+
+        # Dibujar seleccion de imagen
+        rect = self.profile_pic_rect
+        if ("/" in self.selected_profile_pic):
+            text = self.selected_profile_pic.split('/')[-1]
+        else:
+            text = self.selected_profile_pic
+        pygame.draw.rect(screen, (200, 200, 200), rect, 2)
+        text_surface = self.small_font.render(text, True, (150, 150, 150))
+        screen.blit(text_surface, (rect.x + 5, rect.y + 5))
+        
+
+        # Dibujar seleccion de nave
+        rect = self.ship_rect
+        text = self.selected_ship
+        pygame.draw.rect(screen, (200, 200, 200), rect, 2)
+        text_surface = self.small_font.render(text, True, (150, 150, 150))
+        screen.blit(text_surface, (rect.x + 5, rect.y + 5))
 
         # Dibujar botones
         for button in self.buttons:
