@@ -1,6 +1,7 @@
 import pygame
 from widgets.button import Button
 from widgets.dropdown import Dropdown
+from widgets.helpbutton import HelpButton
 
 class EditPlaythrough:
     def __init__(self, game):
@@ -43,6 +44,29 @@ class EditPlaythrough:
         self.header_surfaces = []
         self.row_label_surfaces = []
 
+        # Boton de ayuda
+        help_text = (
+            "Edit Playthrough Help\n\n"
+            "Use this screen to customize which enemy patterns appear in each level.\n\n"
+            "Layout:\n\n"
+            "- Each row corresponds to a game level (Level 1, Level 2, Level 3).\n"
+            "- For each level, you can select an enemy pattern from the dropdown menu.\n\n"
+            "Instructions:\n"
+            "1. Click on the dropdown next to a level to view the available enemy patterns.\n"
+            "2. Select the desired pattern for that level.\n"
+            "3. Repeat for all levels you want to customize.\n\n"
+            "Buttons:\n"
+            "- Save: Save your changes.\n"
+            "- Return: Go back to the options menu without saving.\n\n"
+            "Tips:\n"
+            "- You can adjust enemy patterns to make levels easier or harder.\n"
+            "- All levels must have a pattern selected (default is 'Pattern 1').\n\n"
+            "This setup allows you to create custom difficulty flows or experiment with different challenge combinations.\n\n"
+        )
+        self.help_button = HelpButton(font=pygame.font.Font(None,50), title="Edit Playthrough",text=help_text,pos=(0,0),screen_size=[])
+
+
+
     def _on_select_pattern(self, idx, option_text):
         # callback opcional cuando se selecciona un patrón en nivel idx
         # por ahora solo imprimimos; sirve para debug o lógica adicional
@@ -66,6 +90,9 @@ class EditPlaythrough:
                 dd.handle_event(event)
             for b in self.buttons:
                 b.handle_event(event)
+
+            # Pasar eventos a boton de ayuda
+            self.help_button.handle_event(event)
 
     def update_layout(self, screen):
         width, height = screen.get_size()
@@ -154,6 +181,13 @@ class EditPlaythrough:
         self.buttons[0].update_pos((start_x, button_y))
         self.buttons[1].update_pos((start_x + self.buttons[0].width + gap, button_y))
 
+        # Boton de ayuda
+        margin = 20  # margen desde los bordes
+        final_x = margin
+        final_y = height - self.help_button.height - margin
+        self.help_button.screen_size = [width,height]
+        self.help_button.update_pos([final_x,final_y])
+
     def update(self, dt):
         pass
 
@@ -189,3 +223,6 @@ class EditPlaythrough:
         # dibujar botones
         for b in self.buttons:
             b.draw(screen)
+
+        # Dibujar boton de ayuda
+        self.help_button.draw(screen)

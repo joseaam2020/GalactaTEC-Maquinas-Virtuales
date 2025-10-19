@@ -1,5 +1,6 @@
 import pygame
 from widgets.button import Button
+from widgets.helpbutton import HelpButton
 #from options import Options
 
 class main_window:
@@ -32,6 +33,18 @@ class main_window:
         self.buttons = [
             Button(text=txt, font=self.small_font, pos=(0, 0)) for txt in self.buttons_data
         ]
+
+        # Boton de ayuda
+        help_text = (
+            "Welcome to the game!\n\n"
+            "This is the sign-in screen where you can:\n\n"
+            "- Enter your username and password to log in.\n\n"
+            "- Click 'Sign in' to log in if your credentials are correct.\n\n"
+            "- Click 'New player' to register a new account.\n\n"
+            "- Click 'Recover password' if you've forgotten your password.\n\n"
+            "Use the keyboard to type in your information.\n"
+        )
+        self.help_button = HelpButton(font=self.font, title="Sign in",text=help_text,pos=(0,0),screen_size=[])
 
     def handle_events(self):
         for event in pygame.event.get():
@@ -83,6 +96,8 @@ class main_window:
                         print("Cambiando a ventana a cambiar contraseña")
                         self.game.change_state("RECOVER_PASSWORD")
 
+            # Pasar eventos a boton de ayuda
+            self.help_button.handle_event(event)
 
     def attempt_login(self):
         # Intenta iniciar sesión con las credenciales proporcionadas
@@ -156,6 +171,12 @@ class main_window:
         #Botón "Sign in": pos=(838, 430), size=(123, 46)
         #Botón "New player": pos=(660, 492), size=(168, 45)
 
+        # Boton de ayuda
+        margin = 20  # margen desde los bordes
+        final_x = margin
+        final_y = height - self.help_button.height - margin
+        self.help_button.screen_size = [width,height]
+        self.help_button.update_pos([final_x,final_y])
 
     def draw(self, screen):
         # Dibujar fondo escalado
@@ -196,6 +217,9 @@ class main_window:
         # Dibujar botones
         for button in self.buttons:
             button.draw(screen)
+
+        # Dibujar boton de ayuda
+        self.help_button.draw(screen)
 
     def update(self, dt):
         pass
