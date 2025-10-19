@@ -1,5 +1,6 @@
 import pygame
 from widgets.button import Button
+from screens.main_window import main_window
 
 class Options:
     def __init__(self, game):
@@ -31,6 +32,9 @@ class Options:
                 case "Edit Playthrough":
                     on_click = self.game.change_state
                     args = "EDIT_PLAYTHROUGH"
+                case "Add Players":
+                    on_click = self.on_sign_in
+                    args = "MAIN"
             self.buttons.append(
                 Button(
                     text=txt,
@@ -41,8 +45,6 @@ class Options:
                 )
             )
 
-        # Funcionalidad del botón Add Players, que es registrar a un nuevo jugador
-        self.buttons[3].on_click = lambda: self.game.change_state("REGISTER")
 
     def handle_events(self):
         for event in pygame.event.get():
@@ -89,3 +91,8 @@ class Options:
         self.update_layout(screen)
         for button in self.buttons:
             button.draw(screen)
+
+    def on_sign_in(self, args):
+        if not main_window.signed_in:
+            main_window.signed_in = True 
+        self.game.change_state(args)

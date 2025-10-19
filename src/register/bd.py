@@ -1,45 +1,46 @@
 import sqlite3
 from datetime import datetime
 import bcrypt
+import screens.main_window
 
 # Conecta o crea la base de datos local
-conn = sqlite3.connect("GalactaDB.db")
-cursor = conn.cursor()
+#conn = sqlite3.connect("GalactaDB.db")
+#cursor = conn.cursor()
 
 # ----------------------------------------------------------
 # 🔹 Crear tabla si no existe
 # ----------------------------------------------------------
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS players (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username TEXT UNIQUE NOT NULL,
-    full_name TEXT NOT NULL,
-    email TEXT UNIQUE NOT NULL,
-    password_hash BLOB NOT NULL,
-    photo_path TEXT,
-    ship_image TEXT,
-    music_pref TEXT,
-    created_at TEXT
-)
+#cursor.execute("""
+#CREATE TABLE IF NOT EXISTS players (
+#    id INTEGER PRIMARY KEY AUTOINCREMENT,
+#    username TEXT UNIQUE NOT NULL,
+#    full_name TEXT NOT NULL,
+#    email TEXT UNIQUE NOT NULL,
+#    password_hash BLOB NOT NULL,
+#    photo_path TEXT,
+#    ship_image TEXT,
+#    music_pref TEXT,
+#    created_at TEXT
+#)
                
                
-""")
-conn.commit()
+#""")
+#conn.commit()
 
 
 # ----------------------------------------------------------
 # 🔹 Crear tabla de puntajes
 # ----------------------------------------------------------
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS scores (
-    id_score INTEGER PRIMARY KEY AUTOINCREMENT,
-    player_id INTEGER NOT NULL,
-    score INTEGER NOT NULL,
-    created_at TEXT,
-    FOREIGN KEY (player_id) REFERENCES players(id)
-)
-""")
-conn.commit()
+#cursor.execute("""
+#CREATE TABLE IF NOT EXISTS scores (
+#    id_score INTEGER PRIMARY KEY AUTOINCREMENT,
+#    player_id INTEGER NOT NULL,
+#    score INTEGER NOT NULL,
+#    created_at TEXT,
+#    FOREIGN KEY (player_id) REFERENCES players(id)
+#)
+#""")
+#conn.commit()
 
 
 # ----------------------------------------------------------
@@ -65,21 +66,34 @@ def register_player(username, full_name, email, password, photo_path, ship_image
 # ----------------------------------------------------------
 # 🔹 Login
 # ----------------------------------------------------------
-def login_player(username_or_email, password):
+def login_player(username, password, db_path):
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
     cursor.execute("""
-        SELECT username, password_hash FROM players WHERE username = ? OR email = ?
-    """, (username_or_email, username_or_email))
-    result = cursor.fetchone()
+        SELECT username, password_hash FROM players WHERE username = ?
+    """, (username,))
+
+
+
+    print("Base de datos")
+    print(username, password)
+   
+    result = cursor.fetchone() # Le pide a la base de datos el resultado
+    #print(result)
+    
     if result:
-        username, stored_hash = result
+        stores_username, stored_hash = result # Devuelve los resultado se la base de datos
         if bcrypt.checkpw(password.encode('utf-8'), stored_hash):
             print(f"✅ Bienvenido, {username}!")
-            return username
+            return True
         else:
             print("❌ Contraseña incorrecta.")
     else:
         print("❌ Usuario no encontrado.")
-    return None
+    
+
+    return False
 
 # ----------------------------------------------------------
 # 🔹 Actualizar datos del jugador
