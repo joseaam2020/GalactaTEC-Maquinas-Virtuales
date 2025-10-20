@@ -100,21 +100,9 @@ class RegisterWindow:
                 exit()
 
             modal_visible: bool = self.buttons[3].modal_visible
-            if(not modal_visible):
-                # Pasar eventos a los campos de texto
-                self.username_field.handle_event(event)
-                self.fullname_field.handle_event(event)
-                self.email_field.handle_event(event)
-                self.music_field.handle_event(event)
-
-                # Pasar eventos a los botones
-                for b in self.buttons:
-                    b.handle_event(event)
-        
-                # Pasar eventos a boton de ayuda
-                self.help_button.handle_event(event)
-            else:
+            if(modal_visible):
                 self.buttons[3].handle_event(event)
+                continue
 
             if getattr(self, "popup_active", False):
                 self.handle_popup_events(event)
@@ -309,6 +297,8 @@ class RegisterWindow:
         rect = self.profile_pic_rect
         if ("/" in self.selected_profile_pic):
             text = self.selected_profile_pic.split('/')[-1]
+        elif("\\" in self.selected_profile_pic):
+            text = self.selected_profile_pic.split('\\')[-1]
         else:
             text = self.selected_profile_pic
         pygame.draw.rect(screen, (200, 200, 200), rect, 2)
