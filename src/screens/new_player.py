@@ -133,7 +133,7 @@ class RegisterWindow:
             # Pasar eventos a boton de ayuda
             self.help_button.handle_event(event)
         
-# =================== FUNCIONES DE ARCHIVO ===================
+    # =================== FUNCIONES DE ARCHIVO ===================
     def select_profile_picture(self,img_path):
         # Simula la selección de una fotografía
         self.selected_profile_pic = img_path
