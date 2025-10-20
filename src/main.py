@@ -5,6 +5,8 @@ from screens.main_window import main_window
 from screens.new_player import RegisterWindow
 from screens.hall_fame import HallOfFame
 from screens.edit_playthrough import EditPlaythrough
+from screens.recover_password import RecoverPassword
+from widgets.textinput import TextInput
 
 # pygame setup
 pygame.init()
@@ -18,13 +20,20 @@ class StateManager:
             "OPTIONS": Options(self),
             "REGISTER": RegisterWindow(self),
             "HALL_FAME": HallOfFame(self),
-            "EDIT_PLAYTHROUGH" : EditPlaythrough(self)
+            "EDIT_PLAYTHROUGH" : EditPlaythrough(self),
+            "RECOVER_PASSWORD" : RecoverPassword(self)
         }
         self.current_state = self.states["MAIN"]  # arranca en login
 
     def change_state(self, new_state):
         if new_state in self.states:
             self.current_state = self.states[new_state]
+
+            # Limpiar todos los TextInput cuando la ventana los tenga
+            for attr_name in dir(self.current_state):
+                attr = getattr(self.current_state, attr_name)
+                if isinstance(attr, TextInput):
+                    attr.clear()
         else:
             print(f"Estado '{new_state}' no existe")
 

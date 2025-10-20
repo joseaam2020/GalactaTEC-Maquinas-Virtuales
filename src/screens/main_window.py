@@ -8,11 +8,13 @@ from widgets.helpbutton import HelpButton
 class main_window:
 
     signed_in = False
+    needs_reset = False
 
     def __init__(self, game):
         self.game = game
         self.font = pygame.font.Font(None, 60)
         self.small_font = pygame.font.Font(None, 36)
+
 
         # Fondo
         self.background = pygame.image.load("./resources/imgs/options_background.jpg").convert()
@@ -31,6 +33,7 @@ class main_window:
             placeholder="Enter password",
             password=True
         )
+
 
         # Definimos los botones
         self.buttons_data = [
@@ -54,7 +57,7 @@ class main_window:
                     args = "REGISTER"
                 case "Recover password":
                     on_click = self.game.change_state
-                    args = ""
+                    args = "RECOVER_PASSWORD"
                 case "Return":
                     on_click = self.game.change_state
                     args = "OPTIONS"
@@ -231,12 +234,13 @@ class main_window:
             if elapsed < self.error_duration:
                 error_font = pygame.font.Font(None, 40)
                 error_surf = error_font.render(self.error_message, True, (255, 50, 50))
-                error_rect = error_surf.get_rect(center=(screen.get_width() // 2, screen.get_height() // 2))
+                error_rect = error_surf.get_rect(center=(screen.get_width() // 2, screen.get_height() // 4))
                 screen.blit(error_surf, error_rect)
             else:
                 del self.error_message  # borrar mensaje tras tiempo
 
-    
+        # Dibujar boton de ayuda
+        self.help_button.draw(screen) 
 
     def show_error(self, message, duration=2000):
         """
@@ -245,11 +249,6 @@ class main_window:
         self.error_message = message
         self.error_time = pygame.time.get_ticks()
         self.error_duration = duration
-
-            
-
-        # Dibujar boton de ayuda
-        self.help_button.draw(screen)
-
+        
     def update(self, dt):
         pass

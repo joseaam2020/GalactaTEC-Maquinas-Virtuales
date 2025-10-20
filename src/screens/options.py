@@ -133,5 +133,6 @@ class Options:
     def on_sign_in(self, args):
         if not main_window.signed_in:
             main_window.signed_in = True 
+            self.game.current_state.needs_reset = True
         self.game.change_state(args)
         
