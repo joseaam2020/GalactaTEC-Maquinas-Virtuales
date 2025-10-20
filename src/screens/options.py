@@ -39,6 +39,9 @@ class Options:
                 case "Exit Game":
                     on_click = self.exit_game
                     args = None
+                case "Start Playthrough":
+                    on_click = self.game.change_state
+                    args = "LEVEL_1"
             self.buttons.append(
                 Button(
                     text=txt,

@@ -7,6 +7,7 @@ from screens.hall_fame import HallOfFame
 from screens.edit_playthrough import EditPlaythrough
 from screens.recover_password import RecoverPassword
 from widgets.textinput import TextInput
+from screens.start_playthrough import Level1
 
 # pygame setup
 pygame.init()
@@ -15,13 +16,15 @@ clock = pygame.time.Clock()
 
 class StateManager:
     def __init__(self):
+        self.screen = screen
         self.states = {
             "MAIN": main_window(self),
             "OPTIONS": Options(self),
             "REGISTER": RegisterWindow(self),
             "HALL_FAME": HallOfFame(self),
             "EDIT_PLAYTHROUGH" : EditPlaythrough(self),
-            "RECOVER_PASSWORD" : RecoverPassword(self)
+            "RECOVER_PASSWORD" : RecoverPassword(self),
+            "LEVEL_1" : Level1(self)
         }
         self.current_state = self.states["MAIN"]  # arranca en login
 
