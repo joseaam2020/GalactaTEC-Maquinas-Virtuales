@@ -1,0 +1,1 @@
+print("iniciar_partida")
