@@ -46,7 +46,10 @@ import screens.main_window
 # ----------------------------------------------------------
 # 🔹 Registrar jugador
 # ----------------------------------------------------------
-def register_player(username, full_name, email, password, photo_path, ship_image, music_pref):
+def register_player(username, full_name, email, password, photo_path, ship_image, music_pref,db_path):
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
     try:
         password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
         cursor.execute("""
@@ -234,3 +237,9 @@ def get_top_6_scores(db_path):
     conn.close()
 
     return top_scores
+
+def username_exists(username, db_path):
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    cursor.execute("SELECT 1 FROM players WHERE username = ? LIMIT 1", (username,))
+    return cursor.fetchone() is not None
