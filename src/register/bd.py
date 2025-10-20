@@ -66,6 +66,30 @@ def register_player(username, full_name, email, password, photo_path, ship_image
         print("❌ Error al registrar:", e)
         return False
 
+
+
+# ----------------------------------------------------------
+# 🔹 Verifica que el correo existe
+# ----------------------------------------------------------
+def check_email(email, db_path):
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT email FROM players WHERE email = ?
+    """, (email,))
+
+    result = cursor.fetchone()
+    conn.close()
+
+    if result:
+        print(f"El correo '{email}' existe en la base de datos.")
+        return True
+    else:
+        print(f"❌ El correo '{email}' no está registrado.")
+        return False
+
+
 # ----------------------------------------------------------
 # 🔹 Login
 # ----------------------------------------------------------

@@ -56,3 +56,8 @@ class TextInput:
 
     def set_size(self, size):
         self.rect.size = size
+
+    # Para limpiar los campos
+    def clear(self):
+        self.text = ""
+        self.text_surface = self.font.render(self.placeholder, True, (150, 150, 150))
