@@ -37,18 +37,24 @@ class Jugador:
         # Movimiento horizontal
         if teclas[pygame.K_LEFT] or teclas[pygame.K_a]:
             self.x -= vel_x
+            movido = True
         if teclas[pygame.K_RIGHT] or teclas[pygame.K_d]:
             self.x += vel_x
+            movido = True
         # Movimiento vertical
         if teclas[pygame.K_UP] or teclas[pygame.K_w]:
             self.y -= vel_y
+            movido = True
         if teclas[pygame.K_DOWN] or teclas[pygame.K_s]:
             self.y += vel_y
+            movido = True
 
         #Sonido al moverse
-        if movido and time.time() - self.ultimo_sonido_mov > 0.3:
+        if movido and time.time() - self.ultimo_sonido_mov >= 0.2:
             SoundManager.play("jugador_mueve")
             self.ultimo_sonido_mov = time.time()
+        else:
+            movido=False
 
         # Rebote al tocar paredes
         if self.x < 0:
@@ -87,7 +93,7 @@ class Jugador:
             self.bonus_teclas[5] -= 1
             if self.bonus_teclas[5] <= 0:
                 self.tipo_disparo = "normal"
-        else:
+        else: 
             SoundManager.play("disparo_normal")
 
     def recibir_daño(self):

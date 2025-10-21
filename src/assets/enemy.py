@@ -1,5 +1,6 @@
 import pygame
 from assets.colors import Colors 
+
 class Enemigo:
     def __init__(self, x, y, screen):
         self.x_inicial = x
