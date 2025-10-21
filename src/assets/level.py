@@ -7,7 +7,7 @@ from assets.player import Jugador
 from assets.enemy import Enemigo
 from assets.bonus import Bonus
 from assets.colors import Colors
-
+from assets.sound_manager import SoundManager
 
 class Level:
     ANCHO, ALTO = 800, 600
@@ -102,6 +102,7 @@ class Level:
                             dx = (enemigo.x + enemigo.tamaño / 2) - disparo.x
                             dy = (enemigo.y + enemigo.tamaño / 2) - disparo.y
                             if math.hypot(dx, dy) <= disparo.explosion_radio:
+                                SoundManager.play("enemigo_muere")
                                 enemigo.vivo = False
                                 self.jugador.puntos += 10 * (2 if self.jugador.doble_puntos else 1)
                     disparo.explosion_frames -= 1
@@ -111,6 +112,7 @@ class Level:
             else:
                 for enemigo in self.enemigos:
                     if enemigo.colisiona_con_disparo(disparo) and not disparo.impactado:
+                        SoundManager.play("enemigo_muere")
                         enemigo.vivo = False
                         self.jugador.puntos += 10 * (2 if self.jugador.doble_puntos else 1)
                         disparo.impactado = True
@@ -125,6 +127,7 @@ class Level:
         for enemigo in self.enemigos:
             if enemigo.vivo and enemigo.colisiona_con_jugador(self.jugador):
                 self.jugador.recibir_daño()
+                SoundManager.play("enemigo_muere")
                 enemigo.vivo = False
 
         # BONUS
@@ -133,6 +136,7 @@ class Level:
             if self.bonus_actual.colisiona_con(self.jugador):
                 self.jugador.asignar_bonus_tecla(self.bonus_actual.tipo)
                 self.bonus_actual.activo = False
+                SoundManager.play("bonus")
 
         if time.time() - self.ultimo_bonus_tiempo >= self.siguiente_bonus and len(self.bonus_usados_nivel) < len(Bonus.TIPOS):
             tipo = random.choice([t for t in Bonus.TIPOS if t not in self.bonus_usados_nivel])

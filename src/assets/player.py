@@ -2,6 +2,7 @@ import pygame
 import time
 from assets.proyectile import Disparo
 from assets.colors import Colors
+from assets.sound_manager import SoundManager
 
 class Jugador:
     def __init__(self,screen):
@@ -21,9 +22,11 @@ class Jugador:
         self.bonus_teclas = {1: False, 2: False, 3: False, 4: 0, 5: 0}
         self.controles_invertidos = False
         self.fin_inversion = 0
+        self.ultimo_sonido_mov = 0
 
     def mover(self, teclas):
         vel_x, vel_y = self.vel, self.vel
+        movido = False
 
         # Si los controles están invertidos
         if self.controles_invertidos and time.time() < self.fin_inversion:
@@ -41,6 +44,11 @@ class Jugador:
             self.y -= vel_y
         if teclas[pygame.K_DOWN] or teclas[pygame.K_s]:
             self.y += vel_y
+
+        #Sonido al moverse
+        if movido and time.time() - self.ultimo_sonido_mov > 0.3:
+            SoundManager.play("jugador_mueve")
+            self.ultimo_sonido_mov = time.time()
 
         # Rebote al tocar paredes
         if self.x < 0:
@@ -70,13 +78,17 @@ class Jugador:
     def disparar(self, disparos):
         disparos.append(Disparo(self.x + 20, self.y-10, self.tipo_disparo))
         if self.tipo_disparo == "area":
+            SoundManager.play("disparo_area")
             self.bonus_teclas[4] -= 1
             if self.bonus_teclas[4] <= 0:
                 self.tipo_disparo = "normal"
         elif self.tipo_disparo == "rastreador":
+            SoundManager.play("disparo_rastreador")
             self.bonus_teclas[5] -= 1
             if self.bonus_teclas[5] <= 0:
                 self.tipo_disparo = "normal"
+        else:
+            SoundManager.play("disparo_normal")
 
     def recibir_daño(self):
         if time.time() < self.invulnerable_hasta:
