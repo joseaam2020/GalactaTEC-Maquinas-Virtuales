@@ -1,10 +1,10 @@
 import sqlite3
 from datetime import datetime
 import bcrypt
-import screens.main_window
+#import screens.main_window
 
 # Conecta o crea la base de datos local
-#conn = sqlite3.connect("GalactaDB.db")
+#conn = sqlite3.connect("./src/register/GalactaDB.db")
 #cursor = conn.cursor()
 
 # ----------------------------------------------------------

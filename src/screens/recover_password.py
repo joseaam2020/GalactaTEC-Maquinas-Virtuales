@@ -3,6 +3,7 @@ from widgets.button import Button
 from widgets.textinput import TextInput
 from widgets.helpbutton import HelpButton
 from register.bd import check_email
+from widgets.emailservice import send_verification_code
 
 class RecoverPassword:
     def __init__(self, game):
@@ -88,6 +89,13 @@ class RecoverPassword:
             # Lógica para enviar el correo
             print("Correo enviado")
 
+            code = send_verification_code(email)
+            if code:
+                self.show_verification_popup(code)
+            else:
+                self.show_error("Error enviando el correo de verificación")
+        
+
     # ---------------- LAYOUT ----------------
     def update_layout(self, screen):
         width, height = screen.get_size()
@@ -133,6 +141,40 @@ class RecoverPassword:
         self.help_button.screen_size = [width, height]
         self.help_button.update_pos([final_x, final_y])
 
+        # Agregar esto al final:
+        if getattr(self, "popup_active", False):
+            width, height = screen.get_size()
+            popup_width, popup_height = 400, 250
+
+            # Centrar popup
+            self.popup_rect = pygame.Rect(
+                (width - popup_width) // 2,
+                (height - popup_height) // 2,
+                popup_width,
+                popup_height
+            )
+
+            # Reposicionar campo de texto
+            self.code_field.set_pos((
+                self.popup_rect.centerx - self.code_field.rect.width // 2,
+                self.popup_rect.centery - self.code_field.rect.height // 2
+            ))
+
+            # Reposicionar botones
+            spacing = 10
+            verify_button = self.popup_buttons[0]
+            cancel_button = self.popup_buttons[1]
+
+            verify_button.update_pos((
+                self.popup_rect.centerx - verify_button.width - spacing,
+                self.popup_rect.bottom - verify_button.height - 20
+            ))
+
+            cancel_button.update_pos((
+                self.popup_rect.centerx + spacing,
+                self.popup_rect.bottom - cancel_button.height - 20
+            ))
+
     # ---------------- DIBUJADO ----------------
     def draw(self, screen):
         background_scaled = pygame.transform.scale(self.background, screen.get_size())
@@ -171,6 +213,10 @@ class RecoverPassword:
         # Botón de ayuda
         self.help_button.draw(screen)
 
+        # Si el popup está activo, dibujarlo encima
+        if getattr(self, "popup_active", False):
+            self.draw_popup(screen)
+
     def show_error(self, message, duration=2000):
         self.error_message = message
         self.error_time = pygame.time.get_ticks()
@@ -178,3 +224,103 @@ class RecoverPassword:
 
     def update(self, dt):
         pass
+
+    # =================== POPUP DE VERIFICACIÓN ===================
+
+    def show_verification_popup(self, sent_code: int):
+        """
+        Muestra un cuadro emergente (popup) para ingresar el código de verificación.
+        """
+        self.popup_active = True
+        self.sent_code = sent_code
+        self.popup_font = pygame.font.Font(None, 40)
+
+        width, height = 800,600
+        popup_width, popup_height = 400, 250
+        self.popup_rect = pygame.Rect(
+            (width - popup_width) // 2,
+            (height - popup_height) // 2,
+            popup_width,
+            popup_height
+        )
+
+        # Campo de texto para el código
+        self.code_field = TextInput(
+            (self.popup_rect.centerx - 100, self.popup_rect.centery - 20),
+            (200, 40),
+            self.popup_font,
+            placeholder="Enter code"
+        )
+
+        # Botones
+        self.popup_buttons = [
+            Button(
+                text="Verify",
+                font=self.popup_font,
+                pos=(self.popup_rect.centerx - 90, self.popup_rect.bottom - 70),
+                on_click=self.verify_code
+            ),
+            Button(
+                text="Cancel",
+                font=self.popup_font,
+                pos=(self.popup_rect.centerx + 20, self.popup_rect.bottom - 70),
+                on_click=self.close_popup
+            )
+        ]
+
+    def close_popup(self):
+        """
+        Cierra el popup sin validar.
+        """
+        self.popup_active = False
+
+    def verify_code(self):
+        """
+        Valida el código ingresado por el usuario.
+        """
+        entered = self.code_field.get_value().strip()
+
+        if entered.isdigit() and int(entered) == self.sent_code:
+            print("✅ Código correcto. Registro completado.")
+            self.popup_active = False
+            self.show_error("Correo verificado con éxito", duration=2000)
+            # Aquí puedes continuar con la creación del jugador y guardarlo en la BD.
+            username = self.username_field.text
+            fullname = self.fullname_field.text
+            email    = self.email_field.text
+            music    = self.music_field.text
+
+        else:
+            print("❌ Código incorrecto.")
+            self.show_error("Código incorrecto, inténtalo de nuevo")
+
+    def handle_popup_events(self, event):
+        """
+        Maneja los eventos del popup mientras está activo.
+        """
+        self.code_field.handle_event(event)
+        for b in self.popup_buttons:
+            b.handle_event(event)
+
+    def draw_popup(self, screen):
+        """
+        Dibuja el cuadro de verificación del código.
+        """
+        # Fondo semi-transparente para efecto modal
+        overlay = pygame.Surface(screen.get_size(), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 180))
+        screen.blit(overlay, (0, 0))
+
+        # Cuadro del popup
+        pygame.draw.rect(screen, (30, 30, 30), self.popup_rect, border_radius=10)
+        pygame.draw.rect(screen, (200, 200, 200), self.popup_rect, 3, border_radius=10)
+
+        # Texto del popup
+        title = self.popup_font.render("Enter verification code", True, (255, 255, 255))
+        screen.blit(title, (self.popup_rect.centerx - title.get_width() // 2, self.popup_rect.y + 30))
+
+        # Campo de texto y botones
+        self.code_field.draw(screen)
+        for b in self.popup_buttons:
+            b.draw(screen)
+
