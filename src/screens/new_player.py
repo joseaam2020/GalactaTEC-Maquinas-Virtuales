@@ -5,7 +5,7 @@ from widgets.filedialog import FileDialog
 from widgets.helpbutton import HelpButton
 from widgets.button import Button
 from widgets.textinput import TextInput
-from register.bd import username_exists
+from register.bd import email_exists, username_exists
 from widgets.emailservice import send_verification_code
 from register.bd import validate_password
 from register.bd import register_player
@@ -452,6 +452,9 @@ class RegisterWindow:
                 return
             elif(not valid_password):
                 self.show_error("Contraseña: " + pwd_msg);
+                return
+            elif email_exists(email=email,db_path="./src/register/GalactaDB.db"):
+                self.show_error("El correo ya existe, por favor ingrese otro.")
                 return
             else:
                 code = send_verification_code(email)
