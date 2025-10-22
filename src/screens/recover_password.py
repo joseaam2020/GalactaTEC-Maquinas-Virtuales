@@ -5,6 +5,8 @@ from widgets.helpbutton import HelpButton
 from register.bd import check_email
 from widgets.emailservice import send_verification_code
 
+email = ""
+
 class RecoverPassword:
     def __init__(self, game):
         self.game = game
@@ -60,6 +62,11 @@ class RecoverPassword:
             if event.type == pygame.QUIT:
                 pygame.quit()
                 exit()
+            
+            # Si el popup está activo, manejar solo sus eventos
+            if getattr(self, "popup_active", False):
+                self.handle_popup_events(event)
+                continue 
 
             # Pasar eventos al input
             self.email_input.handle_event(event)
@@ -78,7 +85,7 @@ class RecoverPassword:
 
     # ---------------- ENVÍO ----------------
     def send_request(self):
-        email = self.email_input.get_value()
+        email = self.email_input.get_value() # Obtener valor del email
         if not email:
             self.show_error("Please enter your email")
             return
@@ -86,12 +93,11 @@ class RecoverPassword:
         print(f"Recover password for: {email}")
         checked = check_email(email, "./src/register/GalactaDB.db")
         if checked: 
-            # Lógica para enviar el correo
-            print("Correo enviado")
-
+            # Enviar el correo
             code = send_verification_code(email)
             if code:
                 self.show_verification_popup(code)
+                print("Correo enviado")
             else:
                 self.show_error("Error enviando el correo de verificación")
         
@@ -195,6 +201,16 @@ class RecoverPassword:
         # Campo de texto
         self.email_input.draw(screen)
 
+        # Mostrar tiempo restante solo si el popup está activo
+        if getattr(self, "popup_active", False) and hasattr(self, "popup_font"):
+            elapsed = pygame.time.get_ticks() - getattr(self, "code_sent_time", 0)
+            remaining = max(0, getattr(self, "code_expiration", 0) - elapsed)
+            seconds_left = remaining // 1000
+
+            timer_text = self.popup_font.render(f"Expires in: {seconds_left}s", True, (200, 100, 100))
+            screen.blit(timer_text, (self.popup_rect.centerx - timer_text.get_width() // 2, self.popup_rect.bottom - 120))
+
+
         # Botones
         for button in self.buttons:
             button.draw(screen)
@@ -268,6 +284,10 @@ class RecoverPassword:
             )
         ]
 
+        # Guarda el tiempo de envío del correo
+        self.code_sent_time = pygame.time.get_ticks()
+        self.code_expiration = 5 * 60 * 1000  # 5 minutos en milisegundos, probado con 30 segundos y funciona
+
     def close_popup(self):
         """
         Cierra el popup sin validar.
@@ -278,21 +298,30 @@ class RecoverPassword:
         """
         Valida el código ingresado por el usuario.
         """
+        # Verifica que no hayan pasado los 5 minutos que el código está disponible
+        elapsed = pygame.time.get_ticks() - getattr(self, "code_sent_time", 0)
+        if elapsed > getattr(self, "code_expiration", 0):
+            print("Código expirado.")
+            self.show_error("El código ha expirado. Solicita uno nuevo.")
+            self.popup_active = False
+            return
+
         entered = self.code_field.get_value().strip()
 
         if entered.isdigit() and int(entered) == self.sent_code:
-            print("✅ Código correcto. Registro completado.")
+            print("Código correcto. Registro completado.")
             self.popup_active = False
-            self.show_error("Correo verificado con éxito", duration=2000)
-            # Aquí puedes continuar con la creación del jugador y guardarlo en la BD.
-            username = self.username_field.text
-            fullname = self.fullname_field.text
-            email    = self.email_field.text
-            music    = self.music_field.text
+            self.show_error("Código verificado con éxito", duration=2000)
+            self.game.current_email = self.email_input.get_value().strip()
+            self.game.change_state("CHANGE_PASSWORD")
 
         else:
             print("❌ Código incorrecto.")
             self.show_error("Código incorrecto, inténtalo de nuevo")
+
+    def get_email(self):
+        return email
+
 
     def handle_popup_events(self, event):
         """
