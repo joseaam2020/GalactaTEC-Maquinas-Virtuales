@@ -9,7 +9,7 @@ class main_window:
 
     signed_in = False
     needs_reset = False
-    logged_user = set() # Conjunto para llevar control de todos los usuarios que se han logueado
+    logged_users = set() # Conjunto para llevar control de todos los usuarios que se han logueado
 
     def __init__(self, game):
         self.game = game
@@ -132,12 +132,12 @@ class main_window:
         user = login_player(username, password, "./src/register/GalactaDB.db")
         if user:  # login correcto
             # Verificar si el usuario ya está logueado
-            if username in main_window.logged_user:
+            if username in main_window.logged_users:
                 self.show_error("Este usuario ya ha iniciado sesión")
                 return
             
             # En caso de que no haya iniciado sesión
-            main_window.logged_user.add(username) # Guardar el nuevo usuario
+            main_window.logged_users.add(username) # Guardar el nuevo usuario
             
             self.game.change_state("OPTIONS")
         else:  # login fallido

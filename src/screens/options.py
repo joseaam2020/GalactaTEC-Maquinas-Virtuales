@@ -7,11 +7,9 @@ class Options:
     def __init__(self, game):
         self.game = game
         self.font = pygame.font.Font(None, 60)
-
-        # Cargar imagen de fondo
         self.background = pygame.image.load("./resources/imgs/options_background.jpg").convert()
 
-        # Definimos los textos de los botones
+        # Botones principales
         self.buttons_data = [
             "Edit User",
             "Hall of Fame",
@@ -20,8 +18,6 @@ class Options:
             "Start Playthrough",
             "Exit Game",
         ]
-
-        # Creamos los botones
         self.buttons = []
         for txt in self.buttons_data:
             on_click = None
@@ -52,8 +48,7 @@ class Options:
                 )
             )
 
-
-        # Boton de ayuda
+        # Botón de ayuda
         help_text = (
             "This is the game's options menu. From here, you can:\n\n"
             "- Edit User: Change your profile's information.\n\n"
@@ -63,10 +58,13 @@ class Options:
             "- Start Playthrough: Begin a new playthrough session.\n\n"
             "- Exit Game: Close the game and return to the desktop.\n\n"
         )
-        self.help_button = HelpButton(font=self.font, title="Options",text=help_text,pos=(0,0),screen_size=[])
-                
+        self.help_button = HelpButton(font=self.font, title="Options", text=help_text, pos=(0,0), screen_size=[])
 
+        # ---------------- PESTAÑAS DE JUGADORES ----------------
+        self.active_player = None  # jugador activo
+        self.player_tabs = []      # botones de pestañas
 
+    # ---------------- EVENTOS ----------------
     def handle_events(self):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -74,68 +72,103 @@ class Options:
                 exit()
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_RETURN:
-                    self.game.change_state("LEVEL1")
+                    self.game.change_state("LEVEL_1")
 
-            # Pasar eventos a todos los botones
+            # Botones principales
             for b in self.buttons:
                 b.handle_event(event)
 
-            # Pasar eventos a boton de ayuda
+            # Pestañas de jugadores
+            for tab in self.player_tabs:
+                tab.handle_event(event)
+
+            # Botón de ayuda
             self.help_button.handle_event(event)
 
-
-
+    # ---------------- LAYOUT ----------------
     def update_layout(self, screen):
-        """Actualiza posiciones y tamaños según el tamaño de la pantalla."""
         width, height = screen.get_size()
         button_height = height // (len(self.buttons) + 2)
         y_offset = button_height
 
+        # Actualizar botones principales
         for i, button in enumerate(self.buttons):
-            # Escalar el tamaño de fuente proporcionalmente
-            scale_factor = width / 800  # suponiendo 800 como ancho base
+            scale_factor = width / 800
             font_size = int(40 * scale_factor)
             button.font = pygame.font.Font(None, font_size)
-
-            # Actualizar texto y tamaño
-            button.update_text(button.text)  # corregido: era uptdate_text
-
-            # Centrar horizontalmente
+            button.update_text(button.text)
             x = (width - button.width) // 2
             y = y_offset + i * button_height
             button.update_pos((x, y))
 
-        # Boton de ayuda
-        margin = 20  # margen desde los bordes
+        # Botón de ayuda
+        margin = 20
         final_x = margin
         final_y = height - self.help_button.height - margin
         self.help_button.screen_size = [width,height]
         self.help_button.update_pos([final_x,final_y])
-         
 
-    def update(self, dt):
-        pass
+        # ---------------- PESTAÑAS DE JUGADORES ----------------
+        tab_width = 150
+        tab_height = 40
+        tab_spacing = 20
+        tab_y = 50
+        self.player_tabs = []
+
+        for i, username in enumerate(list(main_window.logged_users)):
+            def make_on_click(u=username):
+                return lambda: self.set_active_player(u)
+            
+            tab_button = Button(
+                text=username,
+                font=pygame.font.Font(None, 30),
+                pos=(50, tab_y + i * (tab_height + tab_spacing)),
+                on_click=make_on_click()
+            )
+            tab_button.width = tab_width
+            tab_button.height = tab_height
+            self.player_tabs.append(tab_button)
+
+            # Establecer el primer jugador como activo si no hay ninguno
+            if self.active_player is None:
+                self.active_player = username
+
+    # ---------------- DIBUJADO ----------------
+    def draw(self, screen):
+        background_scaled = pygame.transform.scale(self.background, screen.get_size())
+        screen.blit(background_scaled, (0, 0))
+
+        self.update_layout(screen)
+
+        # Dibujar botones principales
+        for button in self.buttons:
+            button.draw(screen)
+
+        # Dibujar pestañas de jugadores
+        for tab in self.player_tabs:
+            # Resaltar jugador activo
+            if tab.text == self.active_player:
+                pygame.draw.rect(screen, (100, 200, 250), tab.rect)  # color azul claro
+            tab.draw(screen)
+
+        # Dibujar botón de ayuda
+        self.help_button.draw(screen)
+
+    # ---------------- FUNCIONES ----------------
+    def set_active_player(self, username):
+        self.active_player = username
+        print(f"Jugador activo: {self.active_player}")
+        # Aquí podrías cargar configuraciones específicas del jugador
+
+    def on_sign_in(self, args):
+        if not main_window.signed_in:
+            main_window.signed_in = True
+            self.game.current_state.needs_reset = True
+        self.game.change_state(args)
 
     def exit_game(self):
         pygame.quit()
         exit()
 
-    def draw(self, screen):
-        # Dibujar fondo escalado
-        background_scaled = pygame.transform.scale(self.background, screen.get_size())
-        screen.blit(background_scaled, (0, 0))
-
-        # Actualizar layout y dibujar botones
-        self.update_layout(screen)
-        for button in self.buttons:
-            button.draw(screen)
-            
-         # Dibujar boton de ayuda
-        self.help_button.draw(screen)
-
-    def on_sign_in(self, args):
-        if not main_window.signed_in:
-            main_window.signed_in = True 
-            self.game.current_state.needs_reset = True
-        self.game.change_state(args)
-        
+    def update(self, dt):
+        pass
