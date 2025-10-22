@@ -1,18 +1,10 @@
 import pygame
-import re
-import random
-import os
-import base64
 from widgets.filedialog import FileDialog
 from widgets.helpbutton import HelpButton
 from widgets.button import Button
 from widgets.textinput import TextInput
 from register.bd import username_exists
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
-from googleapiclient.discovery import build
+from widgets.emailservice import send_verification_code
 
 class RegisterWindow:
     def __init__(self, game):
@@ -430,7 +422,7 @@ class RegisterWindow:
             if username_exists(username=username, db_path="./src/register/GalactaDB.db"):
                 self.show_error("El usuario ya existe, por favor ingrese otro.")
             else:
-                code = self.send_verification_code(email)
+                code = send_verification_code(email)
                 if code:
                     self.show_verification_popup(code)
                 else:
@@ -439,42 +431,6 @@ class RegisterWindow:
             self.show_error("Error: Debe llenar todos los espacios")
 
 
-    def is_valid_email(self,email: str) -> bool:
-        return re.match(r"^[\w\.-]+@[\w\.-]+\.\w+$", email) is not None
-
-    def gmail_authenticate(self):
-        SCOPES = ['https://www.googleapis.com/auth/gmail.send']
-        creds = None
-        if os.path.exists('token.json'):
-            creds = Credentials.from_authorized_user_file('token.json', SCOPES)
-        if not creds or not creds.valid:
-            flow = InstalledAppFlow.from_client_secrets_file('credentials.json', SCOPES)
-            creds = flow.run_local_server(port=0)
-            with open('token.json', 'w') as token_file:
-                token_file.write(creds.to_json())
-        service = build('gmail', 'v1', credentials=creds)
-        return service
-
-    def send_verification_code(self,to_email: str) -> int | None:
-        if not self.is_valid_email(to_email):
-            print("Correo inválido")
-            return None
-
-        try:
-            code = random.randint(100000, 999999)
-            message = MIMEText(f"Tu código es: {code}", "plain")
-            message['to'] = to_email
-            message['from'] = "tecgalacta@gmail.com"
-            message['subject'] = "Codigo Verificacion Galacta TEC"
-            raw_message = base64.urlsafe_b64encode(message.as_bytes()).decode()
-            message_body = {'raw': raw_message}
-            service = self.gmail_authenticate()
-            service.users().messages().send(userId='me', body=message_body).execute()
-            print("Correo enviado con OAuth2")
-            return code
-        except Exception as e:
-            print("Error al enviar:", e)
-            return None
 
     # =================== POPUP DE VERIFICACIÓN ===================
 

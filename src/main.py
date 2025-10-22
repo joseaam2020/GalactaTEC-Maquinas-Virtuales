@@ -8,6 +8,7 @@ from screens.edit_playthrough import EditPlaythrough
 from screens.recover_password import RecoverPassword
 from widgets.textinput import TextInput
 from screens.start_playthrough import Level1
+from screens.change_password import ChangePassword
 
 # pygame setup
 pygame.init()
@@ -24,9 +25,11 @@ class StateManager:
             "HALL_FAME": HallOfFame(self),
             "EDIT_PLAYTHROUGH" : EditPlaythrough(self),
             "RECOVER_PASSWORD" : RecoverPassword(self),
-            "LEVEL_1" : Level1(self)
+            "LEVEL_1" : Level1(self),
+            "CHANGE_PASSWORD": ChangePassword(self)
         }
         self.current_state = self.states["MAIN"]  # arranca en login
+        self.current_email = None
 
     def change_state(self, new_state):
         if new_state in self.states:
