@@ -29,8 +29,10 @@ class SoundManager:
         }
 
         # Ajusta volúmenes
-        SoundManager.sonidos["disparo_area"].set_volume(0.7)
-        SoundManager.sonidos["enemigo_muere"].set_volume(0.6)
+        SoundManager.sonidos["disparo_area"].set_volume(0.8)
+        SoundManager.sonidos["enemigo_muere"].set_volume(0.7)
+        SoundManager.sonidos["disparo_normal"].set_volume(0.5)
+        SoundManager.sonidos["jugador_mueve"].set_volume(0.1)
 
         SoundManager.inicializado = True
 
