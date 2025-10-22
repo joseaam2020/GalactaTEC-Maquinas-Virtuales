@@ -1,10 +1,14 @@
 import pygame
+import os
+import shutil
 from widgets.filedialog import FileDialog
 from widgets.helpbutton import HelpButton
 from widgets.button import Button
 from widgets.textinput import TextInput
 from register.bd import username_exists
 from widgets.emailservice import send_verification_code
+from register.bd import validate_password
+from register.bd import register_player
 
 class RegisterWindow:
     def __init__(self, game):
@@ -24,6 +28,7 @@ class RegisterWindow:
         # Campos de selección de archivos
         self.selected_profile_pic = "No seleccionada"
         self.selected_music = "No seleccionada"
+        self.selected_ship  = ""
 
         # Botones
         self.buttons_data = ["Register", "Return"]
@@ -387,7 +392,7 @@ class RegisterWindow:
             if elapsed < self.error_duration:
                 error_font = pygame.font.Font(None, 40)
                 error_surf = error_font.render(self.error_message, True, (255, 50, 50))
-                error_rect = error_surf.get_rect(center=(screen.get_width() // 2, screen.get_height() // 5))
+                error_rect = error_surf.get_rect(center=(screen.get_width() // 2, screen.get_height() // 18))
                 screen.blit(error_surf, error_rect)
             else:
                 del self.error_message  # borrar mensaje tras tiempo
@@ -416,19 +421,48 @@ class RegisterWindow:
         ship     = self.selected_ship
         photo    = self.selected_profile_pic
 
+        # Validar que los paths existan
+        if not os.path.isfile(music):
+            self.show_error("Archivo de música no encontrado")
+            return
+        if not music.lower().endswith('.mp3'):
+            self.show_error("El archivo de música no es .mp3")
+            return
+        
+        if not os.path.isfile(ship):
+            self.show_error("Archivo de nave no encontrado:")
+            return
+        if not ship.lower().endswith(('.jpg', '.png')):
+            self.show_error("El archivo de nave no es .jpg o .png")
+            return
+        
+        if not os.path.isfile(photo):
+            self.show_error("Archivo de foto no encontrado")
+            return
+        if not photo.lower().endswith(('.jpg', '.png')):
+            self.show_error("El archivo de foto no es .jpg o .png:")
+            return
+
+        valid_password, pwd_msg = validate_password(password=password) 
 
         # Validando informacion
         if(username and fullname and email and music and password and ship and photo):
             if username_exists(username=username, db_path="./src/register/GalactaDB.db"):
                 self.show_error("El usuario ya existe, por favor ingrese otro.")
+                return
+            elif(not valid_password):
+                self.show_error("Contraseña: " + pwd_msg);
+                return
             else:
                 code = send_verification_code(email)
                 if code:
                     self.show_verification_popup(code)
                 else:
                     self.show_error("Error enviando el correo de verificación")
+                    return
         else:
             self.show_error("Error: Debe llenar todos los espacios")
+            return
 
 
 
@@ -495,7 +529,58 @@ class RegisterWindow:
             username = self.username_field.text
             fullname = self.fullname_field.text
             email    = self.email_field.text
-            music    = self.select_music
+            password = self.password_field.text
+            music    = self.selected_music
+            ship     = self.selected_ship
+            photo    = self.selected_profile_pic
+
+            # Rutas de destino
+            audio_dest_dir = "./resources/audio/"
+            img_dest_dir = "./resources/imgs/"
+
+            # Asegurarse de que las carpetas existen
+            os.makedirs(audio_dest_dir, exist_ok=True)
+            os.makedirs(img_dest_dir, exist_ok=True)
+
+            # Obtener solo el nombre del archivo
+            music_filename = os.path.basename(self.selected_music)
+            photo_filename = os.path.basename(self.selected_profile_pic)
+
+            # Rutas completas de destino
+            music_dest = os.path.join(audio_dest_dir, music_filename)
+            photo_dest = os.path.join(img_dest_dir, photo_filename)
+
+            # Copiar archivos (sobrescribe si ya existe)
+            shutil.copy2(self.selected_music, music_dest)
+            shutil.copy2(self.selected_profile_pic, photo_dest)
+
+            # Actualizar variables con las nuevas rutas
+            music = music_dest
+            photo = photo_dest
+
+            # Registrar el usuario en la base de datos
+            register_player(
+                    username=username,
+                    full_name=fullname,
+                    email=email,
+                    password=password,
+                    photo_path=photo,
+                    music_pref=music,
+                    ship_image=ship,
+                    db_path="./src/register/GalactaDB.db",
+            )
+            
+            # Crear diccionario para el jugador
+            info =  {
+                    "email"  : email,
+                    "music" : music,
+                    "ship" : ship,
+                    "photo" : photo
+                    }
+
+            self.game.players[username] = info
+            print(self.game.players)
+            self.game.change_state("OPTIONS")
 
         else:
             print("❌ Código incorrecto.")

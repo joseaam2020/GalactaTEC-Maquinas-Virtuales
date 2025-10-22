@@ -10,6 +10,7 @@ from widgets.textinput import TextInput
 from screens.start_playthrough import Level1
 from screens.change_password import ChangePassword
 
+
 # pygame setup
 pygame.init()
 screen = pygame.display.set_mode((1280, 720))
@@ -30,7 +31,9 @@ class StateManager:
         }
         self.current_state = self.states["MAIN"]  # arranca en login
         self.current_email = None
+        self.players = {}
 
+    
     def change_state(self, new_state):
         if new_state in self.states:
             self.current_state = self.states[new_state]

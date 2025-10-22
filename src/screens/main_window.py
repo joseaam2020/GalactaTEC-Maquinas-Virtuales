@@ -3,6 +3,7 @@ from widgets.button import Button
 from widgets.textinput import TextInput 
 from register.bd import login_player
 from widgets.helpbutton import HelpButton
+from register.bd import get_player
 #from options import Options
 
 class main_window:
@@ -138,7 +139,14 @@ class main_window:
             
             # En caso de que no haya iniciado sesión
             main_window.logged_user.add(username) # Guardar el nuevo usuario
-            
+
+
+            # Agregar informacion del usuario en diccionario
+            info = get_player(username=username, db_path="./src/register/GalactaDB.db")
+            self.game.players[username] = info
+           
+            print(self.game.players)
+
             self.game.change_state("OPTIONS")
         else:  # login fallido
             self.show_error("Usuario o contraseña incorrectos")
