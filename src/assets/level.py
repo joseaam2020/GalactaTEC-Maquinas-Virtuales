@@ -176,7 +176,11 @@ class Level:
 
         # Disparos y colisiones
         for disparo in self.disparos[:]:
-            disparo.mover()
+            if(disparo.tipo == "rastreador"):
+                enemigos = self.enemigos
+            else:
+                enemigos = None
+            disparo.mover(enemigos)
             if disparo.tipo == "area":
                 if not disparo.impactado:
                     for enemigo in self.enemigos:
