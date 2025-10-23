@@ -122,6 +122,31 @@ def login_player(username, password, db_path):
 
     return False
 
+def get_player(username, db_path):
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT username, password_hash, full_name, email, photo_path, ship_image, music_pref
+        FROM players WHERE username = ?
+    """, (username,))
+
+    result = cursor.fetchone()
+    
+    if result:
+        stored_username, stored_hash, full_name, email, photo_path, ship_image, music_pref = result
+        print(f"✅ Bienvenido, {stored_username}!")
+        return {
+            "email": email,
+            "photo_path": photo_path,
+            "ship_image": ship_image,
+            "music_pref": music_pref
+        }
+    else:
+        print("❌ Usuario no encontrado.")
+    
+    return None
+
 # ----------------------------------------------------------
 # 🔹 Actualizar datos del jugador
 # ----------------------------------------------------------
@@ -242,6 +267,12 @@ def username_exists(username, db_path):
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     cursor.execute("SELECT 1 FROM players WHERE username = ? LIMIT 1", (username,))
+    return cursor.fetchone() is not None
+
+def email_exists(email, db_path):
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    cursor.execute("SELECT 1 FROM players WHERE email = ? LIMIT 1", (email,))
     return cursor.fetchone() is not None
 
 

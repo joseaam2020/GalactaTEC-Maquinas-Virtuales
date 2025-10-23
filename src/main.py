@@ -8,10 +8,13 @@ from screens.edit_playthrough import EditPlaythrough
 from screens.recover_password import RecoverPassword
 from widgets.textinput import TextInput
 from screens.start_playthrough import Level1
+from assets.sound_manager import SoundManager
 from screens.change_password import ChangePassword
+
 
 # pygame setup
 pygame.init()
+SoundManager.init()
 screen = pygame.display.set_mode((1280, 720))
 clock = pygame.time.Clock()
 
@@ -30,7 +33,9 @@ class StateManager:
         }
         self.current_state = self.states["MAIN"]  # arranca en login
         self.current_email = None
+        self.players = {}
 
+    
     def change_state(self, new_state):
         if new_state in self.states:
             self.current_state = self.states[new_state]

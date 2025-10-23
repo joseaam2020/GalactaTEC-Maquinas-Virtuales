@@ -26,7 +26,7 @@ class FileDialog(Button):
 
             # Paginacion
             self.current_page = 0
-            self.items_per_page = 9
+            self.items_per_page = 8
 
     def setup_modal(self):
         # Se reposiciona en open_dialog()
@@ -40,6 +40,8 @@ class FileDialog(Button):
         y = (self.screen_size[1] - self.modal_rect.height) // 2
         self.modal_rect.topleft = (x, y)
 
+        header_height = 50  # altura del área donde se muestra la ruta
+
         self.text_input.set_pos((x + 10, y + self.modal_rect.height - 60))
         self.text_input.set_size((self.modal_rect.width - 20, 40))
 
@@ -47,7 +49,7 @@ class FileDialog(Button):
         self.cancel_button = Button("Cancelar", (x + 200, y + self.modal_rect.height - 110), self.small_font, self.cancel)
 
         self.file_buttons = []
-        y_offset = y + 10
+        y_offset = y + header_height + 10  # desplazamos los archivos debajo del encabezado
 
         start = self.current_page * self.items_per_page
         end = start + self.items_per_page
@@ -65,7 +67,7 @@ class FileDialog(Button):
             y_offset += button.height + 10
             self.file_buttons.append(button)
 
-        # Botones de navegación (paginación)
+        # Botones de navegación
         if end < len(self.files):
             next_button = Button(">", (x + self.modal_rect.width - 70, y + self.modal_rect.height - 110), self.small_font, self.next_page)
             self.file_buttons.append(next_button)
@@ -73,7 +75,7 @@ class FileDialog(Button):
         if self.current_page > 0:
             prev_button = Button("<", (x + self.modal_rect.width - 140, y + self.modal_rect.height - 110), self.small_font, self.prev_page)
             self.file_buttons.append(prev_button)
-    
+       
     def next_page(self):
         if (self.current_page + 1) * self.items_per_page < len(self.files):
             self.current_page += 1
@@ -144,15 +146,33 @@ class FileDialog(Button):
             pygame.draw.rect(surface, (30, 30, 30), self.modal_rect)
             pygame.draw.rect(surface, (200, 200, 200), self.modal_rect, 2)
 
-            # Ruta actual
-            path_surface = self.small_font.render(self.current_path, True, (255, 255, 0))
-            surface.blit(path_surface, (self.modal_rect.x + 10, self.modal_rect.y - 30))
+            # Dibujar encabezado con la ruta actual
+            header_height = 40
+            header_rect = pygame.Rect(
+                self.modal_rect.x,
+                self.modal_rect.y,
+                self.modal_rect.width,
+                header_height
+            )
+            pygame.draw.rect(surface, (50, 50, 50), header_rect)
+            pygame.draw.line(
+                surface, (200, 200, 200),
+                (header_rect.x, header_rect.bottom),
+                (header_rect.right, header_rect.bottom),
+                2
+            )
 
+            # Dibujar texto de la ruta actual dentro del encabezado
+            path_surface = self.small_font.render(self.current_path, True, (255, 255, 0))
+            surface.blit(path_surface, (self.modal_rect.x + 10, self.modal_rect.y + 10))
+
+            # Dibujar botones de archivos
             for b in self.file_buttons:
                 b.draw(surface)
 
+            # Dibujar TextInput y botones de acción
             self.text_input.draw(surface)
-            if(self.select_button and self.cancel_button):
+            if self.select_button and self.cancel_button:
                 self.select_button.draw(surface)
                 self.cancel_button.draw(surface)
 
