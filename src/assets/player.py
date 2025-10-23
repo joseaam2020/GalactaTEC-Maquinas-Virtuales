@@ -26,6 +26,14 @@ class Jugador:
         self.estela = []  # lista de posiciones para la estela
         self.estela_max = 15  # máximo de "partículas" visibles
 
+        # Image por defecto
+        try:
+            self.imagen_original = pygame.image.load("./resources/imgs/player_ship_1.png").convert_alpha()
+            self.imagen = pygame.transform.scale(self.imagen_original, (self.tamaño, self.tamaño))
+        except FileNotFoundError:
+            print("⚠️ No se encontró 'assets/player.png'. Se usará el rectángulo por defecto.")
+            self.imagen = None
+
     def mover(self, teclas):
         vel_x, vel_y = self.vel, self.vel
         movido = False
@@ -179,3 +187,16 @@ class Jugador:
             self.tipo_disparo = "area"
         elif tecla == 5 and self.bonus_teclas[5] > 0:
             self.tipo_disparo = "rastreador"
+
+    def cambiar_imagen(self, ruta_imagen):
+        """
+        Carga una nueva imagen para el jugador desde la ruta especificada y la escala al tamaño correcto.
+        Si falla la carga, mantiene la imagen actual y muestra un mensaje.
+        """
+        try:
+            nueva_imagen = pygame.image.load(ruta_imagen).convert_alpha()
+            self.imagen_original = nueva_imagen
+            self.imagen = pygame.transform.scale(nueva_imagen, (self.tamaño, self.tamaño))
+            print(f"Imagen del jugador actualizada: {ruta_imagen}")
+        except Exception as e:
+            print(f"Error al cargar la imagen {ruta_imagen}: {e}")

@@ -138,12 +138,14 @@ class main_window:
                 return
             
             # En caso de que no haya iniciado sesión
-            main_window.logged_user.add(username) # Guardar el nuevo usuario
+            main_window.logged_users.add(username) # Guardar el nuevo usuario
 
 
             # Agregar informacion del usuario en diccionario
             info = get_player(username=username, db_path="./src/register/GalactaDB.db")
             self.game.players[username] = info
+            patterns = {1:1,2:1,3:1}
+            self.game.patterns[username] = patterns
            
             print(self.game.players)
 

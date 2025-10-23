@@ -1,4 +1,6 @@
 import pygame
+import random
+from assets.sound_manager import SoundManager
 from widgets.button import Button
 from screens.main_window import main_window
 from widgets.helpbutton import HelpButton
@@ -27,7 +29,7 @@ class Options:
                     on_click = self.game.change_state
                     args = "HALL_FAME"
                 case "Edit Playthrough":
-                    on_click = self.game.change_state
+                    on_click = self.edit_game
                     args = "EDIT_PLAYTHROUGH"
                 case "Add Players":
                     on_click = self.on_sign_in
@@ -36,7 +38,7 @@ class Options:
                     on_click = self.exit_game
                     args = None
                 case "Start Playthrough":
-                    on_click = self.game.change_state
+                    on_click = self.start_game
                     args = "LEVEL_1"
             self.buttons.append(
                 Button(
@@ -172,3 +174,46 @@ class Options:
 
     def update(self, dt):
         pass
+
+    def start_game(self,args):
+        logged_users = list(main_window.logged_users)
+        if len(logged_users) > 1:
+            random.shuffle(logged_users)
+            second_player = logged_users[1]
+            player_2_info = self.game.players[second_player]
+        else:   
+            second_player = None
+            
+        first_player = logged_users[0]
+        player_1_info = self.game.players[first_player]
+
+
+        # Imagen de la nave
+        self.game.states[args].jugador.cambiar_imagen(player_1_info['ship_image'])
+
+        # Imagen de perfil
+
+        # Musica
+        music = SoundManager.cargar_musica("",player_1_info['music_pref'])
+
+        #User Info
+        self.game.states[args].user_1_info.update_info(first_player,player_1_info['photo_path'],0)
+        if(second_player):
+            self.game.states[args].user_2_info.update_info(second_player,player_2_info['photo_path'],0)
+        else:
+            self.game.states[args].user_2_info = None
+
+        # Patron enemigo
+        self.game.states[args].tipo_patron = self.game.patterns[self.active_player][1]
+
+        # Cambio de pantalla
+        self.game.change_state(args)
+
+    def edit_game(self,args):
+        # Consigue patrones actuales
+        patterns = self.game.patterns[self.active_player]
+        # Actualiza los valores del edit_playthrough
+        self.game.states[args].update_dropdowns_from_patterns(patterns)
+        # Entra en edit playthrough
+        self.game.change_state(args)
+

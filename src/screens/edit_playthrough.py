@@ -78,6 +78,8 @@ class EditPlaythrough:
             selected = dd.get_selected()
             print(f"Level {i+1} -> {selected}")
         print("Settings saved (por ahora solo consola).")
+        result = self.get_patterns_from_dropdowns()
+        self.game.patterns[self.game.states["OPTIONS"].active_player] = result
 
     def handle_events(self):
         for event in pygame.event.get():
@@ -86,8 +88,14 @@ class EditPlaythrough:
                 exit()
 
             # pasar eventos a dropdowns y botones
-            for dd in self.dropdowns:
-                dd.handle_event(event)
+            self.dropdowns[0].handle_event(event)
+            if(self.dropdowns[0].is_open):
+                continue
+            self.dropdowns[1].handle_event(event)
+            if(self.dropdowns[1].is_open):
+                continue
+            self.dropdowns[2].handle_event(event)
+
             for b in self.buttons:
                 b.handle_event(event)
 
@@ -226,3 +234,31 @@ class EditPlaythrough:
 
         # Dibujar boton de ayuda
         self.help_button.draw(screen)
+
+    def update_dropdowns_from_patterns(self, patterns_dict):
+        """
+        patterns_dict: dict {nivel: patrón_num}, por ejemplo {1:1, 2:3, 3:2}
+        Actualiza el valor seleccionado de los dropdowns según este diccionario.
+        """
+        for i, lvl in enumerate(self.levels):
+            # Obtener patrón para este nivel (default 1)
+            pattern_num = patterns_dict.get(lvl, 1)
+            # Convertir a índice para dropdown (0-based)
+            idx = pattern_num - 1
+            # Validar índice
+            if 0 <= idx < len(self.patterns):
+                self.dropdowns[i].selected_index = idx
+            else:
+                self.dropdowns[i].selected_index = 0
+
+    def get_patterns_from_dropdowns(self):
+        """
+        Recorre los dropdowns y devuelve un diccionario {nivel: patrón_num}
+        basado en los valores seleccionados actualmente.
+        """
+        result = {}
+        for i, lvl in enumerate(self.levels):
+            # El índice seleccionado + 1 es el patrón (porque los patrones van de 1 a 5)
+            selected_pattern_num = self.dropdowns[i].selected_index + 1
+            result[lvl] = selected_pattern_num
+        return result

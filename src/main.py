@@ -34,6 +34,7 @@ class StateManager:
         self.current_state = self.states["MAIN"]  # arranca en login
         self.current_email = None
         self.players = {}
+        self.patterns = {}
 
     
     def change_state(self, new_state):
