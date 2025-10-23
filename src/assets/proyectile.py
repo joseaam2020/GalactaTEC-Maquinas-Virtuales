@@ -1,5 +1,7 @@
 import pygame
+import math
 from assets.colors import Colors
+
 class Disparo:
     def __init__(self, x, y, tipo="normal"):
         self.x = x
@@ -10,12 +12,39 @@ class Disparo:
         self.impactado = False
         self.explosion_frames = 0
         self.explosion_radio = 0  # NUEVO — tamaño del área de daño
+        self.objetivo = None
 
-    def mover(self, _=None):
-        # Solo se mueve si no ha explotado
+    def mover(self, enemigos=None):
+        # === Movimiento normal ===
+        if self.tipo != "rastreador":
+            if not self.impactado:
+                self.y -= self.vel
+            return
+
+        # === Movimiento rastreador ===
         if not self.impactado:
-            self.y -= self.vel
-        # Si está explotando, no se mueve
+            # Si no tiene objetivo o el enemigo ya murió, buscar uno nuevo
+            if not self.objetivo or not self.objetivo.vivo:
+                self.seleccionar_objetivo(enemigos)
+
+            # Si hay un objetivo válido, moverse hacia él
+            if self.objetivo and self.objetivo.vivo:
+                dx = self.objetivo.x + self.objetivo.tamaño/2 - self.x
+                dy = self.objetivo.y + self.objetivo.tamaño/2 - self.y
+                distancia = math.hypot(dx, dy)
+
+                if distancia != 0:
+                    self.x += (dx / distancia) * self.vel
+                    self.y += (dy / distancia) * self.vel
+
+    def seleccionar_objetivo(self, enemigos):
+            """Selecciona un enemigo vivo de la lista para seguirlo."""
+            vivos = [e for e in enemigos if e.vivo]
+            if vivos:
+                # Escoge uno al azar o el más cercano
+                self.objetivo = min(vivos, key=lambda e: math.hypot(e.x - self.x, e.y - self.y))
+            else:
+                self.objetivo = None
 
     def dibujar(self, superficie):
         from assets.level import Level

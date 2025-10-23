@@ -29,7 +29,7 @@ class HallOfFame:
                         pos=(0,0),
                         size=(120,120),
                         name=player,
-                        photo=("./" + scores[player]['img_path']),
+                        photo=(scores[player]['img_path']),
                         score=scores[player]['score']
                         ))
 
