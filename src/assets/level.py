@@ -4,6 +4,7 @@ import random
 import sys
 import math
 import os
+from widgets.userinfo import UserInfo
 from assets.player import Jugador
 from assets.enemy import Enemigo
 from assets.bonus import Bonus
@@ -26,7 +27,10 @@ class Level:
         self.ultimo_bonus_tiempo = time.time()
         self.siguiente_bonus = random.randint(3, 4)
         self.nivel = 1
+        self.tipo_patron = 1
 
+        # Control de animación del brillo de bonus activos
+        self.tiempo_inicio = time.time()
 
         # Fondo
         ruta_fondo = os.path.join(os.path.dirname(__file__), "..", "..", "resources", "imgs", "fondo.png")
@@ -79,13 +83,31 @@ class Level:
                 print(f"⚠️ No se encontró el icono de bonus: {ruta_icono}")
                 self.iconos_bonus[tecla] = None
 
+        # Informacion jugadores
+        self.user_1_info = UserInfo(
+                font=self.fuente,
+                pos=(20, 20),
+                size=(100, 100),
+                name="",
+                photo="./resources/imgs/disponible.png"
+            )
+
+        self.user_2_info = UserInfo(
+                font=self.fuente,
+                pos=(Level.ANCHO - 120, 20),
+                size=(100, 100),
+                name="",
+                photo="./resources/imgs/disponible.png"
+        )
+
+
     def crear_formacion_enemigos(self):
         self.enemigos.clear()
         for fila in range(self.filas):
             enemigos_en_fila = self.filas - fila
             for col in range(enemigos_en_fila):
                 x = Level.ANCHO//2 - (enemigos_en_fila * self.espacio_x)//2 + col * self.espacio_x
-                y = -50 + fila * self.espacio_y
+                y = -200 + fila * self.espacio_y
                 self.enemigos.append(Enemigo(x, y,self.manager.screen))
 
     def handle_events(self):
@@ -109,21 +131,7 @@ class Level:
 
         self.jugador.actualizar_bonus()
 
-        # Mover enemigos
-        vivos = [e for e in self.enemigos if e.vivo]
-        if vivos:
-            max_x = max(e.x for e in vivos) + 40
-            min_x = min(e.x for e in vivos)
-            if max_x >= Level.ANCHO - 10:
-                self.direccion_x = -1
-                for e in self.enemigos:
-                    e.mover(0, self.vel_y)
-            elif min_x <= 10:
-                self.direccion_x = 1
-                for e in self.enemigos:
-                    e.mover(0, self.vel_y)
-            for e in self.enemigos:
-                e.mover(self.vel_x * self.direccion_x, 0)
+        self.mover_enemigos(self.tipo_patron,dt)
 
         # Disparos y colisiones
         for disparo in self.disparos[:]:
@@ -142,7 +150,7 @@ class Level:
                             if math.hypot(dx, dy) <= disparo.explosion_radio:
                                 SoundManager.play("enemigo_muere")
                                 enemigo.vivo = False
-                                self.jugador.puntos += 200 * (2 if self.jugador.doble_puntos else 1)
+                                self.jugador.puntos += 10 * (2 if self.jugador.doble_puntos else 1)
                     disparo.explosion_frames -= 1
                     if disparo.explosion_frames <= 0:
                         self.disparos.remove(disparo)
@@ -206,6 +214,14 @@ class Level:
         if self.fondo_y >= self.fondo.get_height():
             self.fondo_y = 0
 
+        #Dibujar informacion jugadores
+        self.user_1_info.update_info(score=self.jugador.puntos)
+        self.user_1_info.draw(surface)
+
+        # Si hay un segundo jugador, también se muestra
+        if self.user_2_info:
+            self.user_2_info.draw(surface)
+
 
         self.jugador.dibujar(surface)
         for enemigo in self.enemigos:
@@ -215,58 +231,164 @@ class Level:
         if self.bonus_actual and self.bonus_actual.activo:
             self.bonus_actual.dibujar(surface)
 
-        # HUD
-        hud_texto = f"Nivel: {self.nivel}   Vida: {self.jugador.vida}   Puntos: {self.jugador.puntos}"
-        hud = self.fuente.render(hud_texto, True, Colors.BLANCO)
-        texto_rect = hud.get_rect(bottomright=(Level.ANCHO - 40, Level.ALTO - 130))
 
-        # Panel del HUD
-        panel_ancho = 380
-        panel_alto = 140
-        panel_x = Level.ANCHO - panel_ancho - 20
-        panel_y = Level.ALTO - panel_alto - 20
+        # === Indicador de vidas (parte inferior izquierda) ===
+        base_x = 30
+        base_y = Level.ALTO - 70
+        separacion = 45
+        tamaño_icono = 30
 
-        # Dibujar fondo del panel
-        pygame.draw.rect(surface, (25, 25, 25), (panel_x, panel_y, panel_ancho, panel_alto), border_radius=12)
-        # Borde blanco suave
-        pygame.draw.rect(surface, (200, 200, 200), (panel_x, panel_y, panel_ancho, panel_alto), width=2, border_radius=12)
+        # --- Fondo del panel de vidas ---
+        total_ancho = separacion * max(self.jugador.vida, 3)
+        fondo_rect = pygame.Rect(base_x - 15, base_y - 10, total_ancho + 20, tamaño_icono + 20)
 
-        # Dibujar texto principal (nivel, vida, puntos)
-        surface.blit(hud, texto_rect)
+        # Fondo oscuro semitransparente
+        fondo = pygame.Surface((fondo_rect.width, fondo_rect.height), pygame.SRCALPHA)
+        fondo.fill((20, 20, 20, 180))  # RGBA → 180 = transparencia
+        surface.blit(fondo, fondo_rect.topleft)
 
-        # === Inventario de bonus con íconos ===
-        base_x = panel_x + 30
-        base_y = panel_y + 60
-        separacion = 60
+        # Borde del panel
+        pygame.draw.rect(surface, (200, 200, 200), fondo_rect, width=2, border_radius=12)
+
+        # --- Dibujar los íconos de vida ---
+        for i in range(self.jugador.vida):
+            if self.jugador.imagen:
+                icono_vida = pygame.transform.scale(self.jugador.imagen, (tamaño_icono, tamaño_icono))
+                x = base_x + i * separacion
+                y = base_y
+                surface.blit(icono_vida, (x, y))
+
+        # === Barra de bonus (parte inferior derecha) ===
+        barra_ancho = 320
+        barra_alto = 70
+        barra_x = Level.ANCHO - barra_ancho - 30
+        barra_y = Level.ALTO - barra_alto - 30
+
+        # Fondo de la barra
+        pygame.draw.rect(surface, (30, 30, 30), (barra_x, barra_y, barra_ancho, barra_alto), border_radius=10)
+        pygame.draw.rect(surface, (200, 200, 200), (barra_x, barra_y, barra_ancho, barra_alto), 2, border_radius=10)
+
+        # Posición inicial de los íconos
+        base_x = barra_x + 25
+        base_y = barra_y + 15
+        separacion = 55
+
+        # Calcular intensidad del brillo (parpadeo suave)
+        t = time.time() - self.tiempo_inicio
+        brillo = int((math.sin(t * 3) + 1) * 127)  # rango 0–254
+        color_brillo = (brillo, brillo, 255)  # azul brillante parpadeante
 
         for i in range(1, 6):
             valor = self.jugador.bonus_teclas[i]
             activo = valor > 0 if isinstance(valor, (int, float)) else bool(valor)
 
-            # Marco del icono
-            marco_color = (200, 200, 200) if activo else (100, 100, 100)
-            pygame.draw.rect(surface, marco_color, (base_x + (i - 1) * separacion, base_y, 44, 44), border_radius=6)
-
             icono = self.iconos_bonus.get(i)
             if icono:
-                # Si el bonus no está activo → versión en escala de grises
+                icono_final = icono.copy()
+
                 if not activo:
-                    icono_gris = pygame.transform.average_color(icono)
-                    # Crear superficie gris con alpha
-                    icono_descolorado = icono.copy()
-                    arr = pygame.surfarray.pixels3d(icono_descolorado)
-                    gris = sum(icono_gris[:3]) // 3
-                    arr[:, :, :] = gris
-                    del arr  # liberar bloqueo de memoria de surfarray
-                    surface.blit(icono_descolorado, (base_x + (i - 1) * separacion, base_y))
-                else:
-                    surface.blit(icono, (base_x + (i - 1) * separacion, base_y))
+                    # Convertir icono a gris uniforme manteniendo transparencia
+                    icono_final.fill((100, 100, 100, 180), special_flags=pygame.BLEND_RGBA_MULT)
+
+                # Dibujar icono
+                x_icono = base_x + (i - 1) * separacion
+                y_icono = base_y
+                surface.blit(icono_final, (x_icono, y_icono))
+
+                # Marco para los activos (con brillo animado)
+                if activo:
+                    pygame.draw.rect(
+                        surface,
+                        color_brillo,
+                        (x_icono - 2, y_icono - 2, 44, 44),
+                        2,
+                        border_radius=5
+                    )
             else:
                 # Mostrar número si no hay icono
                 txt = self.fuente.render(str(i), True, Colors.BLANCO)
-                surface.blit(txt, (base_x + (i - 1) * separacion + 14, base_y + 10))
+                surface.blit(txt, (base_x + (i - 1) * separacion + 15, base_y + 10))
 
         # Game Over
         if self.game_over:
             fin = self.fuente.render("GAME OVER", True, Colors.ROJO)
             surface.blit(fin, (Level.ANCHO//2 - 100, Level.ALTO//2))
+
+
+    def mover_enemigos(self, tipo_patron,dt):
+        vivos = [e for e in self.enemigos if e.vivo]
+        if not vivos:
+            return
+        
+        if tipo_patron == 1:
+            # Movimiento clásico: van a un lado y bajan cuando tocan bordes
+            max_x = max(e.x for e in vivos) + 40
+            min_x = min(e.x for e in vivos)
+            if max_x >= Level.ANCHO - 10:
+                self.direccion_x = -1
+                for e in self.enemigos:
+                    e.mover(0, self.vel_y * 3)
+            elif min_x <= 10:
+                self.direccion_x = 1
+                for e in self.enemigos:
+                    e.mover(0, self.vel_y * 3)
+            for e in self.enemigos:
+                e.mover(self.vel_x * self.direccion_x * 5, 0)
+
+        elif tipo_patron == 2:
+            # Movimiento zigzag vertical + horizontal
+            for e in self.enemigos:
+                # Alternar dirección vertical para cada enemigo según fila o id
+                direccion_y = self.vel_y/3 if (e.x // 50) % 2 == 0 else -self.vel_y/6
+                e.mover(self.vel_x * self.direccion_x, direccion_y)
+
+            # Invertir dirección horizontal al tocar bordes
+            max_x = max(e.x for e in vivos) + 40
+            min_x = min(e.x for e in vivos)
+            if max_x >= Level.ANCHO - 10 or min_x <= 10:
+                self.direccion_x *= -1
+
+        elif tipo_patron == 3:
+            # Bajada constante en Y
+            delta_y = self.vel_y / 12  # movimiento vertical lento
+            
+            # Invertir dirección horizontal al tocar bordes
+            max_x = max(e.x for e in vivos) + 40
+            min_x = min(e.x for e in vivos)
+
+            if max_x >= Level.ANCHO - 10 or min_x <= 10:
+                self.direccion_x *= -1
+            for e in self.enemigos:
+                # Calculamos cuánto mover en X: diferencia entre base_x y la posición actual del enemigo
+                
+                # Movemos horizontal y verticalmente
+                e.mover(self.direccion_x * 3 * math.sin(e.y / 100), delta_y)
+
+        elif tipo_patron == 4:
+            # Movimiento oscilante horizontal con bajada periódica
+            for e in self.enemigos:
+                e.mover(self.vel_x * self.direccion_x, 0)
+            
+            # Bajar y cambiar dirección cada cierto tiempo
+            if pygame.time.get_ticks() % 2000 < 50:
+                self.direccion_x *= -1
+                for e in self.enemigos:
+                    e.mover(0, self.vel_y)
+
+        elif tipo_patron == 5:
+            # Movimiento aleatorio controlado
+            for e in self.enemigos:
+          # Si sale por la derecha, reaparece por la izquierda
+                if e.x > Level.ANCHO:
+                    e.x = 0
+            
+                # Si sale por la izquierda, reaparece por la derecha
+                elif e.x < 0:
+                    e.x = Level.ANCHO
+                dx = random.randint(-self.vel_x* 8, self.vel_x* 8)
+                dy = random.randint(0, self.vel_y)
+                e.mover(dx, dy)
+
+        else:
+            # Patrón por defecto: mismo que 1
+            self.mover_enemigos(1,dt)

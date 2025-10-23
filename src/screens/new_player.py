@@ -582,6 +582,8 @@ class RegisterWindow:
                     }
 
             self.game.players[username] = info
+            patterns = {1:1,2:1,3:1}
+            self.game.patterns[username] = patterns
             print(self.game.players)
             self.game.change_state("OPTIONS")
 
