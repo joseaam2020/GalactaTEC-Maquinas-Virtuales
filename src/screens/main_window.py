@@ -146,6 +146,9 @@ class main_window:
             self.game.players[username] = info
             patterns = {1:1,2:1,3:1}
             self.game.patterns[username] = patterns
+
+            # Establecer el jugador activo
+            #self.game.current_player = username
            
             print(self.game.players)
 

@@ -44,6 +44,77 @@ import bcrypt
 
 
 # ----------------------------------------------------------
+# 🔹 Actualizar información del jugador
+# ----------------------------------------------------------
+
+def update_player(username, new_username=None, full_name=None, email=None, password=None,
+                  photo_path=None, ship_image=None, music_pref=None, db_path="./src/register/GalactaDB.db"):
+    """
+    Actualiza los datos de un jugador en la base de datos.
+    
+    Parámetros:
+    - username (str): Identificador del jugador actual.
+    - new_username (str): Nuevo nombre de usuario (opcional).
+    - full_name (str): Nuevo nombre completo.
+    - email (str): Nuevo correo.
+    - password (str): Nueva contraseña (se guardará como hash).
+    - photo_path (str): Ruta nueva de la foto.
+    - ship_image (str): Ruta nueva de la nave.
+    - music_pref (str): Ruta nueva de música preferida.
+    - db_path (str): Ruta de la base de datos.
+    """
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+
+        # Construir la query dinámicamente según los campos que se van a actualizar
+        updates = []
+        params = []
+
+        if new_username:
+            updates.append("username = ?")
+            params.append(new_username)
+        if full_name:
+            updates.append("full_name = ?")
+            params.append(full_name)
+        if email:
+            updates.append("email = ?")
+            params.append(email)
+        if password:
+            password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
+            updates.append("password_hash = ?")
+            params.append(password_hash)
+        if photo_path:
+            updates.append("photo_path = ?")
+            params.append(photo_path)
+        if ship_image:
+            updates.append("ship_image = ?")
+            params.append(ship_image)
+        if music_pref:
+            updates.append("music_pref = ?")
+            params.append(music_pref)
+
+        if not updates:
+            print("No hay campos para actualizar.")
+            return False
+
+        # Agregar el username para el WHERE
+        params.append(username)
+
+        query = f"UPDATE players SET {', '.join(updates)} WHERE username = ?"
+        cursor.execute(query, params)
+        conn.commit()
+        conn.close()
+        print(f"Jugador '{username}' actualizado correctamente.")
+        return True
+
+    except Exception as e:
+        print("Error actualizando jugador:", e)
+        return False
+
+
+
+# ----------------------------------------------------------
 # 🔹 Registrar jugador
 # ----------------------------------------------------------
 def register_player(username, full_name, email, password, photo_path, ship_image, music_pref,db_path):
@@ -137,6 +208,7 @@ def get_player(username, db_path):
         stored_username, stored_hash, full_name, email, photo_path, ship_image, music_pref = result
         print(f"✅ Bienvenido, {stored_username}!")
         return {
+            "full_name": full_name, 
             "email": email,
             "photo_path": photo_path,
             "ship_image": ship_image,
@@ -147,26 +219,7 @@ def get_player(username, db_path):
     
     return None
 
-# ----------------------------------------------------------
-# 🔹 Actualizar datos del jugador
-# ----------------------------------------------------------
-def update_player(username, **updates):
-    allowed = {"full_name", "email", "photo_path", "ship_image", "music_pref"}
-    fields = []
-    values = []
-    for key, value in updates.items():
-        if key in allowed:
-            fields.append(f"{key} = ?")
-            values.append(value)
-    if not fields:
-        print("⚠️ No hay datos válidos para actualizar.")
-        return False
-    values.append(username)
-    query = f"UPDATE players SET {', '.join(fields)} WHERE username = ?"
-    cursor.execute(query, values)
-    conn.commit()
-    print("✅ Datos actualizados correctamente.")
-    return True
+
 
 # ----------------------------------------------------------
 # 🔹 Mostrar todos (solo para depuración)
