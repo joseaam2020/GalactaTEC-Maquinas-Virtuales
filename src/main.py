@@ -10,6 +10,7 @@ from widgets.textinput import TextInput
 from screens.start_playthrough import Level1
 from assets.sound_manager import SoundManager
 from screens.change_password import ChangePassword
+from screens.edit_user import EditUser
 
 
 # pygame setup
@@ -21,6 +22,7 @@ clock = pygame.time.Clock()
 class StateManager:
     def __init__(self):
         self.screen = screen
+        self.current_player = None # Para indicar el jugador activo
         self.states = {
             "MAIN": main_window(self),
             "OPTIONS": Options(self),
@@ -29,7 +31,8 @@ class StateManager:
             "EDIT_PLAYTHROUGH" : EditPlaythrough(self),
             "RECOVER_PASSWORD" : RecoverPassword(self),
             "LEVEL_1" : Level1(self),
-            "CHANGE_PASSWORD": ChangePassword(self)
+            "CHANGE_PASSWORD": ChangePassword(self),
+            "EDIT_USER": EditUser(self)
         }
         self.current_state = self.states["MAIN"]  # arranca en login
         self.current_email = None

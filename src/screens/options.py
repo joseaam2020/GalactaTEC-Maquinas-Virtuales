@@ -4,6 +4,7 @@ from assets.sound_manager import SoundManager
 from widgets.button import Button
 from screens.main_window import main_window
 from widgets.helpbutton import HelpButton
+from screens.edit_user import EditUser
 
 class Options:
     def __init__(self, game):
@@ -40,6 +41,9 @@ class Options:
                 case "Start Playthrough":
                     on_click = self.start_game
                     args = "LEVEL_1"
+                case "Edit User":
+                    on_click = self.edit_user
+                    args = "EDIT_USER"
             self.buttons.append(
                 Button(
                     text=txt,
@@ -146,19 +150,31 @@ class Options:
         for button in self.buttons:
             button.draw(screen)
 
+        # Verificar si el jugador activo sigue existiendo
+        if self.active_player and self.active_player not in main_window.logged_users:
+            # Si el jugador activo fue eliminado o renombrado, seleccionar otro
+            if main_window.logged_users:
+                self.active_player = list(main_window.logged_users)[0]
+                self.game.current_player = self.active_player
+            else:
+                self.active_player = None
+                self.game.current_player = None
+
         # Dibujar pestañas de jugadores
         for tab in self.player_tabs:
             # Resaltar jugador activo
             if tab.text == self.active_player:
-                pygame.draw.rect(screen, (100, 200, 250), tab.rect)  # color azul claro
+                pygame.draw.rect(screen, (100, 200, 250), tab.rect)
             tab.draw(screen)
 
         # Dibujar botón de ayuda
         self.help_button.draw(screen)
 
+
     # ---------------- FUNCIONES ----------------
     def set_active_player(self, username):
         self.active_player = username
+        self.game.current_player = username
         print(f"Jugador activo: {self.active_player}")
         # Aquí podrías cargar configuraciones específicas del jugador
 
@@ -216,4 +232,15 @@ class Options:
         self.game.states[args].update_dropdowns_from_patterns(patterns)
         # Entra en edit playthrough
         self.game.change_state(args)
+
+    def edit_user(self, args):
+
+        # Entra en edit user
+        self.game.change_state(args)
+
+        # Actualiza los valores del edit_playthrough
+        self.game.states[args].load_player_data(self.active_player)
+        
+
+
 
