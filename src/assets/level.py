@@ -5,6 +5,7 @@ import sys
 import math
 import os
 from widgets.userinfo import UserInfo
+from widgets.helpbutton import HelpButton
 from assets.player import Jugador
 from assets.enemy import Enemigo
 from assets.bonus import Bonus
@@ -101,6 +102,29 @@ class Level:
         )
 
 
+        help_text = (
+            "Welcome to GalactaTEC!\n\n"
+            "Your goal is to destroy all enemy waves before they reach you or drain your lives.\n\n"
+            "- Move Left/Right: Use the arrow keys to move your ship horizontally.\n\n"
+            "- Shoot: Press SPACE to fire at incoming enemies.\n\n"
+            "- Use Bonus: Press keys 1–5 to activate collected power-ups.\n\n"
+            "- Bonuses: Catch the floating bonus icons to gain special effects — extra life, shield, double points, area shot, or homing shot.\n\n"
+            "- Lives: Your remaining lives appear at the bottom-left corner of the screen.\n\n"
+            "- Bonus Bar: Active and available bonuses are displayed at the bottom-right corner. Active ones glow with a blue frame.\n\n"
+            "- Scoring: Each enemy destroyed gives you points. With the double-points bonus, you earn twice as much.\n\n"
+            "- Levels: When all enemies are defeated, you advance to the next level, where movement patterns and difficulty increase.\n\n"
+            "- Game Over: If you lose all your lives, the game ends. Try again and beat your high score!\n\n"
+            "Tip: Use your bonuses strategically and keep moving — the galaxy depends on you!\n\n"
+        )
+        self.help_button = HelpButton(
+                font=pygame.font.Font(None,20), 
+                title="Options",
+                text=help_text,
+                pos=(10,Level.ALTO-30),
+                screen_size=[Level.ANCHO,Level.ALTO]
+        )
+
+
     def crear_formacion_enemigos(self):
         self.enemigos.clear()
         for fila in range(self.filas):
@@ -121,8 +145,25 @@ class Level:
                 if pygame.K_1 <= evento.key <= pygame.K_5:
                     self.jugador.usar_bonus(evento.key - pygame.K_1 + 1)
 
+                if evento.key == pygame.K_j:
+                    # Bajar volumen (mínimo 0.0)
+                    volumen_actual = pygame.mixer.music.get_volume()
+                    nuevo_volumen = max(0.0, volumen_actual - 0.1)
+                    pygame.mixer.music.set_volume(nuevo_volumen)
+                    print(f" Volumen bajado a: {nuevo_volumen:.1f}")
+                elif evento.key == pygame.K_k:
+                    # Subir volumen (máximo 1.0)
+                    volumen_actual = pygame.mixer.music.get_volume()
+                    nuevo_volumen = min(1.0, volumen_actual + 0.1)
+                    pygame.mixer.music.set_volume(nuevo_volumen)
+                    print(f" Volumen subido a: {nuevo_volumen:.1f}")
+
+            # Botón de ayuda
+            self.help_button.handle_event(evento)
+
         teclas = pygame.key.get_pressed()
         self.jugador.mover(teclas)
+
 
     def update(self, dt):
         if self.jugador.vida <= 0:
@@ -313,6 +354,9 @@ class Level:
         if self.game_over:
             fin = self.fuente.render("GAME OVER", True, Colors.ROJO)
             surface.blit(fin, (Level.ANCHO//2 - 100, Level.ALTO//2))
+
+        # Dibujar botón de ayuda
+        self.help_button.draw(surface)
 
 
     def mover_enemigos(self, tipo_patron,dt):
