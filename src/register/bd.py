@@ -1,10 +1,10 @@
 import sqlite3
 from datetime import datetime
 import bcrypt
-import screens.main_window
+#import screens.main_window
 
 # Conecta o crea la base de datos local
-#conn = sqlite3.connect("GalactaDB.db")
+#conn = sqlite3.connect("./src/register/GalactaDB.db")
 #cursor = conn.cursor()
 
 # ----------------------------------------------------------
@@ -121,6 +121,31 @@ def login_player(username, password, db_path):
     
 
     return False
+
+def get_player(username, db_path):
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT username, password_hash, full_name, email, photo_path, ship_image, music_pref
+        FROM players WHERE username = ?
+    """, (username,))
+
+    result = cursor.fetchone()
+    
+    if result:
+        stored_username, stored_hash, full_name, email, photo_path, ship_image, music_pref = result
+        print(f"✅ Bienvenido, {stored_username}!")
+        return {
+            "email": email,
+            "photo_path": photo_path,
+            "ship_image": ship_image,
+            "music_pref": music_pref
+        }
+    else:
+        print("❌ Usuario no encontrado.")
+    
+    return None
 
 # ----------------------------------------------------------
 # 🔹 Actualizar datos del jugador
@@ -243,3 +268,78 @@ def username_exists(username, db_path):
     cursor = conn.cursor()
     cursor.execute("SELECT 1 FROM players WHERE username = ? LIMIT 1", (username,))
     return cursor.fetchone() is not None
+
+def email_exists(email, db_path):
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    cursor.execute("SELECT 1 FROM players WHERE email = ? LIMIT 1", (email,))
+    return cursor.fetchone() is not None
+
+
+import re
+
+# ----------------------------------------------------------
+# 🔹 Validar contraseña con reglas mínimas de seguridad
+# ----------------------------------------------------------
+def validate_password(password):
+    """
+    Verifica si una contraseña cumple con los requisitos mínimos de seguridad:
+      - Mínimo 7 caracteres
+      - Al menos una mayúscula
+      - Al menos una minúscula
+      - Al menos un número
+      - Al menos un símbolo especial (!@#$%^&*()_+ etc.)
+    """
+    if len(password) < 7:
+        return False, "Debe tener al menos 7 caracteres."
+
+    if not re.search(r"[A-Z]", password):
+        return False, "Debe contener al menos una letra mayúscula."
+
+    if not re.search(r"[a-z]", password):
+        return False, "Debe contener al menos una letra minúscula."
+
+    if not re.search(r"\d", password):
+        return False, "Debe contener al menos un número."
+
+    if not re.search(r"[!@#$%^&*(),.?\":{}|<>_\-+=/\\\[\]~`]", password):
+        return False, "Debe contener al menos un símbolo especial."
+
+    return True, ""
+
+
+
+# ----------------------------------------------------------
+# 🔹 Actualizar contraseña de un jugador por email
+# ----------------------------------------------------------
+def update_password(email, new_password, db_path):
+    # Actualizar la contraseña del usuario con el emial dado
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+
+        # Hash de la nueva contraseña
+        password_hash = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt())
+
+        # Actualizar la contraseña
+        cursor.execute("""
+            UPDATE players
+            SET password_hash = ?
+            WHERE email = ?
+        """, (password_hash, email))
+
+        if cursor.rowcount == 0:
+            # No se encontró ningún jugador con ese email
+            print(f"No se encontró un jugador con el correo '{email}'.")
+            conn.close()
+            return False
+
+        conn.commit()
+        conn.close()
+        print(f"Contraseña actualizada correctamente para '{email}'.")
+        return True
+
+    except Exception as e:
+        print("Error al actualizar la contraseña:", e)
+        return False
+

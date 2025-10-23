@@ -1,18 +1,14 @@
 import pygame
-import re
-import random
 import os
-import base64
+import shutil
 from widgets.filedialog import FileDialog
 from widgets.helpbutton import HelpButton
 from widgets.button import Button
 from widgets.textinput import TextInput
-from register.bd import username_exists
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
-from googleapiclient.discovery import build
+from register.bd import email_exists, username_exists
+from widgets.emailservice import send_verification_code
+from register.bd import validate_password
+from register.bd import register_player
 
 class RegisterWindow:
     def __init__(self, game):
@@ -27,14 +23,15 @@ class RegisterWindow:
         self.username_field = TextInput((0, 0), (300, 40), self.small_font, placeholder="Enter username")
         self.fullname_field = TextInput((0, 0), (300, 40), self.small_font, placeholder="Enter full name")
         self.email_field = TextInput((0, 0), (300, 40), self.small_font, placeholder="Enter email")
-        self.music_field = TextInput((0, 0), (300, 40), self.small_font, placeholder="Favorite music")
+        self.password_field = TextInput((0, 0), (300, 40), self.small_font, placeholder="Enter password",password=True)
 
         # Campos de selección de archivos
         self.selected_profile_pic = "No seleccionada"
-        self.selected_ship = "No seleccionada"
+        self.selected_music = "No seleccionada"
+        self.selected_ship  = ""
 
         # Botones
-        self.buttons_data = ["Register", "Select Ship", "Return"]
+        self.buttons_data = ["Register", "Return"]
         # Creamos los botones
         self.buttons = []
         for txt in self.buttons_data:
@@ -43,12 +40,6 @@ class RegisterWindow:
             match txt:
                 case "Register":
                     on_click = self.register
-                    args = ""
-                case "Select Photo":
-                    on_click = self.game.change_state
-                    args = ""
-                case "Select Ship":
-                    on_click = self.game.change_state
                     args = ""
                 case "Return":
                     on_click = self.game.change_state
@@ -63,6 +54,7 @@ class RegisterWindow:
                 )
             )
 
+        # Boton imagen
         self.buttons.append(
                 FileDialog(
                     text="Select Photo",
@@ -71,6 +63,30 @@ class RegisterWindow:
                     on_select=self.select_profile_picture
                 )
         )
+
+        # Boton musica
+        self.buttons.append(
+                FileDialog(
+                    text="Select Music",
+                    font=self.small_font,
+                    pos=(0,0),
+                    on_select=self.select_music
+                )
+        )
+
+        # Botones naves
+        for i in range(1,4):
+            self.buttons.append(
+                Button(
+                    text="",
+                    font=self.small_font,
+                    pos=(0, 0),
+                    on_click=self.select_ship_image,
+                    args=i,
+                    image_path=f"./resources/imgs/player_ship_{i}.png",
+                    size=(70,70)
+                )
+            )
 
 
         # Boton de ayuda
@@ -99,8 +115,12 @@ class RegisterWindow:
                 pygame.quit()
                 exit()
 
-            modal_visible: bool = self.buttons[3].modal_visible
-            if(modal_visible):
+            modal_visible_1: bool = self.buttons[2].modal_visible
+            modal_visible_2: bool = self.buttons[3].modal_visible
+            if(modal_visible_1):
+                self.buttons[2].handle_event(event)
+                continue
+            if(modal_visible_2):
                 self.buttons[3].handle_event(event)
                 continue
 
@@ -112,7 +132,7 @@ class RegisterWindow:
             self.username_field.handle_event(event)
             self.fullname_field.handle_event(event)
             self.email_field.handle_event(event)
-            self.music_field.handle_event(event)
+            self.password_field.handle_event(event)
 
             # Pasar eventos a los botones
             for b in self.buttons:
@@ -127,23 +147,32 @@ class RegisterWindow:
         self.selected_profile_pic = img_path
         print("Seleccionar fotografía del perfil")
 
-    def select_ship_image(self):
-        # Simula la selección de una nave
-        self.selected_ship = "ship_red.png"
-        print("Seleccionar imagen de nave")
+    def select_music(self,music_path): 
+        self.selected_music = music_path
+        print("Seleccionar musica")
+
+    def select_ship_image(self, number):
+        self.selected_ship = f"./resources/imgs/player_ship_{number}.png"
+        print(f"Seleccionar imagen de nave {number}")
+
+        # Limpiar el highlight de todos los botones de nave
+        for i in range(4, 7):
+            self.buttons[i].highlighted = False
+
+        # Resaltar el botón seleccionado
+        self.buttons[3 + number].highlighted = True
 
     # =================== LÓGICA DE REGISTRO ===================
     def attempt_register(self):
         username = self.username_field.get_value()
         full_name = self.fullname_field.get_value()
         email = self.email_field.get_value()
-        favorite_music = self.music_field.get_value()
-
+        
         if username and full_name and email:
             print(f"Registrando jugador: {username}")
             print(f"Nombre completo: {full_name}")
             print(f"Email: {email}")
-            print(f"Música preferida: {favorite_music}")
+            print(f"Música preferida: {self.selected_music}")
             print(f"Foto: {self.selected_profile_pic}")
             print(f"Nave: {self.selected_ship}")
             self.game.change_state("MAIN_MENU")
@@ -174,38 +203,47 @@ class RegisterWindow:
         left_margin = width // 15
 
         # Reubicar campos de texto
-        self.username_field.set_pos((left_margin, title_y + field_spacing * 3))
+        self.username_field.set_pos((left_margin, title_y + field_spacing * 2))
         self.username_field.set_size((field_width, field_height))
 
-        self.fullname_field.set_pos((left_margin, title_y + field_spacing * 6))
+        self.fullname_field.set_pos((left_margin, title_y + field_spacing * 5))
         self.fullname_field.set_size((field_width, field_height))
 
-        self.email_field.set_pos((left_margin, title_y + field_spacing * 9))
+        self.email_field.set_pos((left_margin, title_y + field_spacing * 8))
         self.email_field.set_size((field_width, field_height))
 
-        self.music_field.set_pos((left_margin, title_y + field_spacing * 12))
-        self.music_field.set_size((field_width, field_height))
+        self.password_field.set_pos((left_margin, title_y + field_spacing * 11))
+        self.password_field.set_size((field_width, field_height))
 
         # Campos de selección de archivos
         self.profile_pic_rect = pygame.Rect(
-            left_margin, title_y + field_spacing * 15, field_width, field_height
+            left_margin, title_y + field_spacing * 14, field_width, field_height
         )
+
+        # Campos de music
+        self.music_rect = pygame.Rect(
+            left_margin, title_y + field_spacing * 17, field_width, field_height
+        )
+
+
+        # Campos de music
         self.ship_rect = pygame.Rect(
-            left_margin, title_y + field_spacing * 18, field_width, field_height
+            left_margin, title_y + field_spacing * 20, field_width, 60
         )
 
         # Posicionar botones
         button_width = field_width // 2
-        button_start_y = self.ship_rect.bottom + field_spacing
+        button_start_y = self.music_rect.bottom + field_spacing
 
         # Botones de selección de archivo
-        self.buttons[3].update_pos((self.profile_pic_rect.right + 20, self.profile_pic_rect.y - 5))  # Select Photo
+        self.buttons[2].update_pos((self.profile_pic_rect.right + 20, self.profile_pic_rect.y - 5))  # Select Photo
+        self.buttons[2].update_screen_size(screen.get_size())  # Select Photo
+        self.buttons[3].update_pos((self.music_rect.right + 20, self.music_rect.y - 5))  # Select Music
         self.buttons[3].update_screen_size(screen.get_size())  # Select Photo
-        self.buttons[1].update_pos((self.ship_rect.right + 20, self.ship_rect.y - 5))  # Select Ship
 
         # Botones inferiores (Register y Back)
         register_button = self.buttons[0]
-        back_button = self.buttons[2]
+        back_button = self.buttons[1]
         margin_x, margin_y = -10, 30
 
         register_x = width - register_button.width - margin_x
@@ -223,6 +261,22 @@ class RegisterWindow:
         final_y = height - self.help_button.height - margin
         self.help_button.screen_size = [width,height]
         self.help_button.update_pos([final_x,final_y])
+
+        # Botones naves
+        button_size = 70  # ancho y alto de cada botón
+        spacing = 20      # espacio horizontal entre botones
+
+        # Calcular ancho total ocupado por los 3 botones + espacios
+        total_width = button_size * 3 + spacing * 2
+
+        # Coordenada X inicial para centrar dentro del rectángulo
+        start_x = self.ship_rect.x + (self.ship_rect.width - total_width) // 2
+        y_center = self.ship_rect.centery - button_size // 2
+
+        # Actualizar posiciones de los tres botones
+        self.buttons[4].update_pos((start_x, y_center))
+        self.buttons[5].update_pos((start_x + button_size + spacing, y_center))
+        self.buttons[6].update_pos((start_x + (button_size + spacing) * 2, y_center))
         
         if getattr(self, "popup_active", False):
             width, height = screen.get_size()
@@ -276,8 +330,9 @@ class RegisterWindow:
             ("Username:", self.username_field.rect),
             ("Full Name:", self.fullname_field.rect),
             ("Email:", self.email_field.rect),
-            ("Favorite Music:", self.music_field.rect),
+            ("Favorite Music:", self.music_rect),
             ("Profile Picture:", self.profile_pic_rect),
+            ("Password:", self.password_field.rect),
             ("Custom Ship:", self.ship_rect)
         ]
 
@@ -289,7 +344,7 @@ class RegisterWindow:
         self.username_field.draw(screen)
         self.fullname_field.draw(screen)
         self.email_field.draw(screen)
-        self.music_field.draw(screen)
+        self.password_field.draw(screen)
 
         # Campos de selección de archivos
 
@@ -307,8 +362,13 @@ class RegisterWindow:
         
 
         # Dibujar seleccion de nave
-        rect = self.ship_rect
-        text = self.selected_ship
+        rect = self.music_rect
+        if ("/" in self.selected_music):
+            text = self.selected_music.split('/')[-1]
+        elif("\\" in self.selected_music):
+            text = self.selected_music.split('\\')[-1]
+        else:
+            text = self.selected_music
         pygame.draw.rect(screen, (200, 200, 200), rect, 2)
         text_surface = self.small_font.render(text, True, (150, 150, 150))
         screen.blit(text_surface, (rect.x + 5, rect.y + 5))
@@ -316,6 +376,12 @@ class RegisterWindow:
         # Dibujar botones
         for button in self.buttons:
             button.draw(screen)
+
+        self.buttons[0].draw(screen)
+        self.buttons[1].draw(screen)
+        self.buttons[2].draw(screen)
+        if(not self.buttons[2].modal_visible):
+            self.buttons[3].draw(screen)
 
         # Dibujar boton de ayuda
         self.help_button.draw(screen)
@@ -326,7 +392,7 @@ class RegisterWindow:
             if elapsed < self.error_duration:
                 error_font = pygame.font.Font(None, 40)
                 error_surf = error_font.render(self.error_message, True, (255, 50, 50))
-                error_rect = error_surf.get_rect(center=(screen.get_width() // 2, screen.get_height() // 5))
+                error_rect = error_surf.get_rect(center=(screen.get_width() // 2, screen.get_height() // 18))
                 screen.blit(error_surf, error_rect)
             else:
                 del self.error_message  # borrar mensaje tras tiempo
@@ -350,58 +416,58 @@ class RegisterWindow:
         username = self.username_field.text
         fullname = self.fullname_field.text
         email    = self.email_field.text
-        music    = self.music_field.text
+        password = self.password_field.text
+        music    = self.selected_music
+        ship     = self.selected_ship
+        photo    = self.selected_profile_pic
+
+        # Validar que los paths existan
+        if not os.path.isfile(music):
+            self.show_error("Archivo de música no encontrado")
+            return
+        if not music.lower().endswith('.mp3'):
+            self.show_error("El archivo de música no es .mp3")
+            return
+        
+        if not os.path.isfile(ship):
+            self.show_error("Archivo de nave no encontrado:")
+            return
+        if not ship.lower().endswith(('.jpg', '.png')):
+            self.show_error("El archivo de nave no es .jpg o .png")
+            return
+        
+        if not os.path.isfile(photo):
+            self.show_error("Archivo de foto no encontrado")
+            return
+        if not photo.lower().endswith(('.jpg', '.png')):
+            self.show_error("El archivo de foto no es .jpg o .png:")
+            return
+
+        valid_password, pwd_msg = validate_password(password=password) 
 
         # Validando informacion
-        if(username and fullname and email and music):
+        if(username and fullname and email and music and password and ship and photo):
             if username_exists(username=username, db_path="./src/register/GalactaDB.db"):
                 self.show_error("El usuario ya existe, por favor ingrese otro.")
+                return
+            elif(not valid_password):
+                self.show_error("Contraseña: " + pwd_msg);
+                return
+            elif email_exists(email=email,db_path="./src/register/GalactaDB.db"):
+                self.show_error("El correo ya existe, por favor ingrese otro.")
+                return
             else:
-                code = self.send_verification_code(email)
+                code = send_verification_code(email)
                 if code:
                     self.show_verification_popup(code)
                 else:
                     self.show_error("Error enviando el correo de verificación")
+                    return
         else:
             self.show_error("Error: Debe llenar todos los espacios")
+            return
 
 
-    def is_valid_email(self,email: str) -> bool:
-        return re.match(r"^[\w\.-]+@[\w\.-]+\.\w+$", email) is not None
-
-    def gmail_authenticate(self):
-        SCOPES = ['https://www.googleapis.com/auth/gmail.send']
-        creds = None
-        if os.path.exists('token.json'):
-            creds = Credentials.from_authorized_user_file('token.json', SCOPES)
-        if not creds or not creds.valid:
-            flow = InstalledAppFlow.from_client_secrets_file('credentials.json', SCOPES)
-            creds = flow.run_local_server(port=0)
-            with open('token.json', 'w') as token_file:
-                token_file.write(creds.to_json())
-        service = build('gmail', 'v1', credentials=creds)
-        return service
-
-    def send_verification_code(self,to_email: str) -> int | None:
-        if not self.is_valid_email(to_email):
-            print("Correo inválido")
-            return None
-
-        try:
-            code = random.randint(100000, 999999)
-            message = MIMEText(f"Tu código es: {code}", "plain")
-            message['to'] = to_email
-            message['from'] = "tecgalacta@gmail.com"
-            message['subject'] = "Codigo Verificacion Galacta TEC"
-            raw_message = base64.urlsafe_b64encode(message.as_bytes()).decode()
-            message_body = {'raw': raw_message}
-            service = self.gmail_authenticate()
-            service.users().messages().send(userId='me', body=message_body).execute()
-            print("Correo enviado con OAuth2")
-            return code
-        except Exception as e:
-            print("Error al enviar:", e)
-            return None
 
     # =================== POPUP DE VERIFICACIÓN ===================
 
@@ -466,7 +532,58 @@ class RegisterWindow:
             username = self.username_field.text
             fullname = self.fullname_field.text
             email    = self.email_field.text
-            music    = self.music_field.text
+            password = self.password_field.text
+            music    = self.selected_music
+            ship     = self.selected_ship
+            photo    = self.selected_profile_pic
+
+            # Rutas de destino
+            audio_dest_dir = "./resources/audio/"
+            img_dest_dir = "./resources/imgs/"
+
+            # Asegurarse de que las carpetas existen
+            os.makedirs(audio_dest_dir, exist_ok=True)
+            os.makedirs(img_dest_dir, exist_ok=True)
+
+            # Obtener solo el nombre del archivo
+            music_filename = os.path.basename(self.selected_music)
+            photo_filename = os.path.basename(self.selected_profile_pic)
+
+            # Rutas completas de destino
+            music_dest = os.path.join(audio_dest_dir, music_filename)
+            photo_dest = os.path.join(img_dest_dir, photo_filename)
+
+            # Copiar archivos (sobrescribe si ya existe)
+            shutil.copy2(self.selected_music, music_dest)
+            shutil.copy2(self.selected_profile_pic, photo_dest)
+
+            # Actualizar variables con las nuevas rutas
+            music = music_dest
+            photo = photo_dest
+
+            # Registrar el usuario en la base de datos
+            register_player(
+                    username=username,
+                    full_name=fullname,
+                    email=email,
+                    password=password,
+                    photo_path=photo,
+                    music_pref=music,
+                    ship_image=ship,
+                    db_path="./src/register/GalactaDB.db",
+            )
+            
+            # Crear diccionario para el jugador
+            info =  {
+                    "email"  : email,
+                    "music" : music,
+                    "ship" : ship,
+                    "photo" : photo
+                    }
+
+            self.game.players[username] = info
+            print(self.game.players)
+            self.game.change_state("OPTIONS")
 
         else:
             print("❌ Código incorrecto.")
