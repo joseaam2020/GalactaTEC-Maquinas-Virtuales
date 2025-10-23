@@ -8,11 +8,13 @@ from screens.edit_playthrough import EditPlaythrough
 from screens.recover_password import RecoverPassword
 from widgets.textinput import TextInput
 from screens.start_playthrough import Level1
+from assets.sound_manager import SoundManager
 from screens.change_password import ChangePassword
 
 
 # pygame setup
 pygame.init()
+SoundManager.init()
 screen = pygame.display.set_mode((1280, 720))
 clock = pygame.time.Clock()
 
