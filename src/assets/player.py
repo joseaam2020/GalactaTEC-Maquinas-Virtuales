@@ -149,7 +149,7 @@ class Jugador:
         self.invulnerable_hasta = time.time() + 1
 
     def aplicar_bonus(self, tipo):
-        if tipo == "vida" and self.vida < 3:
+        if tipo == "vida" and self.vida < 5:
             self.vida += 1
         elif tipo == "doble_puntos":
             self.doble_puntos = True

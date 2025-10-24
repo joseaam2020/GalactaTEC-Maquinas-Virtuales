@@ -107,6 +107,7 @@ class Level:
             "Your goal is to destroy all enemy waves before they reach you or drain your lives.\n\n"
             "- Move Left/Right: Use the arrow keys to move your ship horizontally.\n\n"
             "- Shoot: Press SPACE to fire at incoming enemies.\n\n"
+            "- Adjust Volume: Press J to lower the music volume and K to increase it.\n\n"
             "- Use Bonus: Press keys 1–5 to activate collected power-ups.\n\n"
             "- Bonuses: Catch the floating bonus icons to gain special effects — extra life, shield, double points, area shot, or homing shot.\n\n"
             "- Lives: Your remaining lives appear at the bottom-left corner of the screen.\n\n"

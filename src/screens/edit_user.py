@@ -91,8 +91,8 @@ class EditUser:
 
         # Boton de ayuda
         help_text = (
-            "New Player Registration\n\n"
-            "Use this form to create your player profile.\n\n"
+            "Edit User Information\n\n"
+            "Use this form to modify your player profile.\n\n"
             "Fields:\n"
             "- Username: Choose a unique name you'll use to sign in.\n"
             "- Full Name: Enter your real or display name.\n"
@@ -101,12 +101,12 @@ class EditUser:
             "- Profile Picture: Click the field or the 'Select Photo' button to choose an avatar.\n"
             "- Custom Ship: Click the field or the 'Select Ship' button to choose your spaceship image.\n\n"
             "Buttons:\n"
-            "- Register: Submit the form and create your player account.\n"
+            "- Apply: Submit the form and change your player account.\n"
             "- Back: Return to the main menu without saving.\n\n"
             "Make sure all required fields are filled in.\n"
         )
 
-        self.help_button = HelpButton(font=self.font, title="Registration",text=help_text,pos=(0,0),screen_size=[])
+        self.help_button = HelpButton(font=self.font, title="Edit User",text=help_text,pos=(0,0),screen_size=[])
 
    # =================== EVENTOS ===================
     def handle_events(self):
@@ -123,10 +123,6 @@ class EditUser:
             if(modal_visible_2):
                 self.buttons[3].handle_event(event)
                 continue
-
-            if getattr(self, "popup_active", False):
-                self.handle_popup_events(event)
-                continue  # bloquea interacción con la ventana principal
 
             # Pasar eventos a los campos de texto
             self.username_field.handle_event(event)
@@ -262,39 +258,7 @@ class EditUser:
         self.buttons[4].update_pos((start_x, y_center))
         self.buttons[5].update_pos((start_x + button_size + spacing, y_center))
         self.buttons[6].update_pos((start_x + (button_size + spacing) * 2, y_center))
-        
-        if getattr(self, "popup_active", False):
-            width, height = screen.get_size()
-            popup_width, popup_height = 400, 250
 
-            # Centrar popup
-            self.popup_rect = pygame.Rect(
-                (width - popup_width) // 2,
-                (height - popup_height) // 2,
-                popup_width,
-                popup_height
-            )
-
-            # Reposicionar campo de texto
-            self.code_field.set_pos((
-                self.popup_rect.centerx - self.code_field.rect.width // 2,
-                self.popup_rect.centery - self.code_field.rect.height // 2
-            ))
-
-            # Reposicionar botones
-            spacing = 10
-            verify_button = self.popup_buttons[0]
-            cancel_button = self.popup_buttons[1]
-
-            verify_button.update_pos((
-                self.popup_rect.centerx - verify_button.width - spacing,
-                self.popup_rect.bottom - verify_button.height - 20
-            ))
-
-            cancel_button.update_pos((
-                self.popup_rect.centerx + spacing,
-                self.popup_rect.bottom - cancel_button.height - 20
-            ))
 
     # =================== DIBUJO ===================
     def draw(self, screen):
@@ -306,7 +270,7 @@ class EditUser:
         width, height = screen.get_size()
 
         # Título
-        title_text = self.font.render("New Player Registration", True, (255, 255, 255))
+        title_text = self.font.render("Edit User Information", True, (255, 255, 255))
         title_rect = title_text.get_rect(center=(width // 2, height // 8))
         screen.blit(title_text, title_rect)
 
@@ -381,10 +345,6 @@ class EditUser:
                 screen.blit(error_surf, error_rect)
             else:
                 del self.error_message  # borrar mensaje tras tiempo
-
-        # Si el popup está activo, dibujarlo encima
-        if getattr(self, "popup_active", False):
-            self.draw_popup(screen)
 
     def update(self, dt):
         pass
