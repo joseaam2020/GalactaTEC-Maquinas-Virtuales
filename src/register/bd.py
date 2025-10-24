@@ -1,0 +1,398 @@
+import sqlite3
+from datetime import datetime
+import bcrypt
+#import screens.main_window
+
+# Conecta o crea la base de datos local
+#conn = sqlite3.connect("./src/register/GalactaDB.db")
+#cursor = conn.cursor()
+
+# ----------------------------------------------------------
+# 🔹 Crear tabla si no existe
+# ----------------------------------------------------------
+#cursor.execute("""
+#CREATE TABLE IF NOT EXISTS players (
+#    id INTEGER PRIMARY KEY AUTOINCREMENT,
+#    username TEXT UNIQUE NOT NULL,
+#    full_name TEXT NOT NULL,
+#    email TEXT UNIQUE NOT NULL,
+#    password_hash BLOB NOT NULL,
+#    photo_path TEXT,
+#    ship_image TEXT,
+#    music_pref TEXT,
+#    created_at TEXT
+#)
+#               
+#               
+#""")
+#conn.commit()
+#
+#
+## ----------------------------------------------------------
+## 🔹 Crear tabla de puntajes
+## ----------------------------------------------------------
+#cursor.execute("""
+#CREATE TABLE IF NOT EXISTS scores (
+#    id_score INTEGER PRIMARY KEY AUTOINCREMENT,
+#    player_id INTEGER NOT NULL,
+#    score INTEGER NOT NULL,
+#    created_at TEXT,
+#    FOREIGN KEY (player_id) REFERENCES players(id)
+#)
+#""")
+#conn.commit()
+
+
+# ----------------------------------------------------------
+# 🔹 Actualizar información del jugador
+# ----------------------------------------------------------
+
+def update_player(username, new_username=None, full_name=None, email=None, password=None,
+                  photo_path=None, ship_image=None, music_pref=None, db_path="./src/register/GalactaDB.db"):
+    """
+    Actualiza los datos de un jugador en la base de datos.
+    
+    Parámetros:
+    - username (str): Identificador del jugador actual.
+    - new_username (str): Nuevo nombre de usuario (opcional).
+    - full_name (str): Nuevo nombre completo.
+    - email (str): Nuevo correo.
+    - password (str): Nueva contraseña (se guardará como hash).
+    - photo_path (str): Ruta nueva de la foto.
+    - ship_image (str): Ruta nueva de la nave.
+    - music_pref (str): Ruta nueva de música preferida.
+    - db_path (str): Ruta de la base de datos.
+    """
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+
+        # Construir la query dinámicamente según los campos que se van a actualizar
+        updates = []
+        params = []
+
+        if new_username:
+            updates.append("username = ?")
+            params.append(new_username)
+        if full_name:
+            updates.append("full_name = ?")
+            params.append(full_name)
+        if email:
+            updates.append("email = ?")
+            params.append(email)
+        if password:
+            password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
+            updates.append("password_hash = ?")
+            params.append(password_hash)
+        if photo_path:
+            updates.append("photo_path = ?")
+            params.append(photo_path)
+        if ship_image:
+            updates.append("ship_image = ?")
+            params.append(ship_image)
+        if music_pref:
+            updates.append("music_pref = ?")
+            params.append(music_pref)
+
+        if not updates:
+            print("No hay campos para actualizar.")
+            return False
+
+        # Agregar el username para el WHERE
+        params.append(username)
+
+        query = f"UPDATE players SET {', '.join(updates)} WHERE username = ?"
+        cursor.execute(query, params)
+        conn.commit()
+        conn.close()
+        print(f"Jugador '{username}' actualizado correctamente.")
+        return True
+
+    except Exception as e:
+        print("Error actualizando jugador:", e)
+        return False
+
+
+
+# ----------------------------------------------------------
+# 🔹 Registrar jugador
+# ----------------------------------------------------------
+def register_player(username, full_name, email, password, photo_path, ship_image, music_pref,db_path):
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    try:
+        password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
+        cursor.execute("""
+            INSERT INTO players (username, full_name, email, password_hash, photo_path, ship_image, music_pref, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (username, full_name, email, password_hash, photo_path, ship_image, music_pref, datetime.utcnow().isoformat()))
+        conn.commit()
+        print("✅ Jugador registrado correctamente.")
+        return True
+    except sqlite3.IntegrityError as e:
+        print("❌ Error: El nombre de usuario o correo ya existen.")
+        return False
+    except Exception as e:
+        print("❌ Error al registrar:", e)
+        return False
+
+
+
+# ----------------------------------------------------------
+# 🔹 Verifica que el correo existe
+# ----------------------------------------------------------
+def check_email(email, db_path):
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT email FROM players WHERE email = ?
+    """, (email,))
+
+    result = cursor.fetchone()
+    conn.close()
+
+    if result:
+        print(f"El correo '{email}' existe en la base de datos.")
+        return True
+    else:
+        print(f"❌ El correo '{email}' no está registrado.")
+        return False
+
+
+# ----------------------------------------------------------
+# 🔹 Login
+# ----------------------------------------------------------
+def login_player(username, password, db_path):
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT username, password_hash FROM players WHERE username = ?
+    """, (username,))
+
+
+
+    print("Base de datos")
+    print(username, password)
+   
+    result = cursor.fetchone() # Le pide a la base de datos el resultado
+    #print(result)
+    
+    if result:
+        stores_username, stored_hash = result # Devuelve los resultado se la base de datos
+        if bcrypt.checkpw(password.encode('utf-8'), stored_hash):
+            print(f"✅ Bienvenido, {username}!")
+            return True
+        else:
+            print("❌ Contraseña incorrecta.")
+    else:
+        print("❌ Usuario no encontrado.")
+    
+
+    return False
+
+def get_player(username, db_path):
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT username, password_hash, full_name, email, photo_path, ship_image, music_pref
+        FROM players WHERE username = ?
+    """, (username,))
+
+    result = cursor.fetchone()
+    
+    if result:
+        stored_username, stored_hash, full_name, email, photo_path, ship_image, music_pref = result
+        print(f"✅ Bienvenido, {stored_username}!")
+        return {
+            "full_name": full_name, 
+            "email": email,
+            "photo_path": photo_path,
+            "ship_image": ship_image,
+            "music_pref": music_pref
+        }
+    else:
+        print("❌ Usuario no encontrado.")
+    
+    return None
+
+
+
+# ----------------------------------------------------------
+# 🔹 Mostrar todos (solo para depuración)
+# ----------------------------------------------------------
+def show_all_players():
+    cursor.execute("SELECT username, full_name, email, photo_path, ship_image, music_pref FROM players")
+    for row in cursor.fetchall():
+        print(row)
+
+# ----------------------------------------------------------
+# 🔹 Guardar un puntaje
+# ----------------------------------------------------------
+def add_score(username, score):
+    try:
+        # Obtener el id del jugador por su username
+        cursor.execute("SELECT id FROM players WHERE username = ?", (username,))
+        result = cursor.fetchone()
+        
+        if not result:
+            print("❌ Jugador no encontrado.")
+            return False
+        
+        player_id = result[0]
+        
+        # Insertar el puntaje
+        cursor.execute("""
+            INSERT INTO scores (player_id, score, created_at)
+            VALUES (?, ?, ?)
+        """, (player_id, score, datetime.utcnow().isoformat()))
+        
+        conn.commit()
+        print(f"✅ Puntaje {score} guardado para el jugador '{username}'.")
+        return True
+    
+    except Exception as e:
+        print("❌ Error al guardar puntaje:", e)
+        return False
+
+# ----------------------------------------------------------
+# 🔹 Mostrar puntajes de un jugador
+# ----------------------------------------------------------
+def show_scores(username):
+    cursor.execute("""
+        SELECT p.username, s.score, s.created_at
+        FROM scores s
+        JOIN players p ON s.player_id = p.id
+        WHERE p.username = ?
+        ORDER BY s.created_at DESC
+    """, (username,))
+    
+    results = cursor.fetchall()
+    if not results:
+        print("⚠️ No hay puntajes registrados para este jugador.")
+    else:
+        print(f"🏆 Puntajes de {username}:")
+        for row in results:
+            print(f"  → {row[1]} puntos ({row[2]})")
+
+def get_top_6_scores(db_path):
+    """
+    Obtiene la puntuación más alta de cada jugador y devuelve los 5 mejores como un diccionario.
+
+    Args:
+        db_path (str): Ruta al archivo de base de datos SQLite (.db).
+
+    Returns:
+        Dict[str, Dict[str, Any]]: Diccionario donde la clave es el nombre del jugador y el valor es otro diccionario
+        con su 'puntaje' y la 'direccion_imagen' (photo_path).
+    """
+    # Conexión a la base de datos
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    # Consulta para obtener top 5 con nombre y foto
+    cursor.execute("""
+        SELECT p.username, MAX(s.score) AS max_score, p.photo_path
+        FROM scores s
+        JOIN players p ON s.player_id = p.id
+        GROUP BY s.player_id
+        ORDER BY max_score DESC
+        LIMIT 6;
+    """)
+
+    # Convertimos los resultados a un diccionario
+    top_scores = {}
+    for username, max_score, photo_path in cursor.fetchall():
+        top_scores[username] = {
+            "score": max_score,
+            "img_path": photo_path
+        }
+
+    # Cerrar conexión
+    conn.close()
+
+    return top_scores
+
+def username_exists(username, db_path):
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    cursor.execute("SELECT 1 FROM players WHERE username = ? LIMIT 1", (username,))
+    return cursor.fetchone() is not None
+
+def email_exists(email, db_path):
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    cursor.execute("SELECT 1 FROM players WHERE email = ? LIMIT 1", (email,))
+    return cursor.fetchone() is not None
+
+
+import re
+
+# ----------------------------------------------------------
+# 🔹 Validar contraseña con reglas mínimas de seguridad
+# ----------------------------------------------------------
+def validate_password(password):
+    """
+    Verifica si una contraseña cumple con los requisitos mínimos de seguridad:
+      - Mínimo 7 caracteres
+      - Al menos una mayúscula
+      - Al menos una minúscula
+      - Al menos un número
+      - Al menos un símbolo especial (!@#$%^&*()_+ etc.)
+    """
+    if len(password) < 7:
+        return False, "Debe tener al menos 7 caracteres."
+
+    if not re.search(r"[A-Z]", password):
+        return False, "Debe contener al menos una letra mayúscula."
+
+    if not re.search(r"[a-z]", password):
+        return False, "Debe contener al menos una letra minúscula."
+
+    if not re.search(r"\d", password):
+        return False, "Debe contener al menos un número."
+
+    if not re.search(r"[!@#$%^&*(),.?\":{}|<>_\-+=/\\\[\]~`]", password):
+        return False, "Debe contener al menos un símbolo especial."
+
+    return True, ""
+
+
+
+# ----------------------------------------------------------
+# 🔹 Actualizar contraseña de un jugador por email
+# ----------------------------------------------------------
+def update_password(email, new_password, db_path):
+    # Actualizar la contraseña del usuario con el emial dado
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+
+        # Hash de la nueva contraseña
+        password_hash = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt())
+
+        # Actualizar la contraseña
+        cursor.execute("""
+            UPDATE players
+            SET password_hash = ?
+            WHERE email = ?
+        """, (password_hash, email))
+
+        if cursor.rowcount == 0:
+            # No se encontró ningún jugador con ese email
+            print(f"No se encontró un jugador con el correo '{email}'.")
+            conn.close()
+            return False
+
+        conn.commit()
+        conn.close()
+        print(f"Contraseña actualizada correctamente para '{email}'.")
+        return True
+
+    except Exception as e:
+        print("Error al actualizar la contraseña:", e)
+        return False
+
