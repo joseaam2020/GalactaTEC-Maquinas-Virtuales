@@ -33,7 +33,7 @@ class Level:
         self.disparos_enemigos = []
         self.ultimo_disparo_enemigo = 0
         self.frecuencia_disparo = 1000  # milisegundos entre disparos
-
+        self.explosiones = []
         # Control de animación del brillo de bonus activos
         self.tiempo_inicio = time.time()
 
@@ -236,6 +236,12 @@ class Level:
                             if math.hypot(dx, dy) <= disparo.explosion_radio:
                                 SoundManager.play("enemigo_muere")
                                 enemigo.vivo = False
+                                self.explosiones.append({
+                                    "x": enemigo.x,
+                                    "y": enemigo.y,
+                                    "start": time.time(),
+                                    "dur": 0.2  # duración de la animación
+                                })
                                 self.jugador.puntos += 10 * (2 if self.jugador.doble_puntos else 1)
                     disparo.explosion_frames -= 1
                     if disparo.explosion_frames <= 0:
@@ -246,6 +252,12 @@ class Level:
                     if enemigo.colisiona_con_disparo(disparo) and not disparo.impactado:
                         SoundManager.play("enemigo_muere")
                         enemigo.vivo = False
+                        self.explosiones.append({
+                            "x": enemigo.x,
+                            "y": enemigo.y,
+                            "start": time.time(),
+                            "dur": 0.2  # duración de la animación
+                        })
                         self.jugador.puntos += 200 * (2 if self.jugador.doble_puntos else 1)
                         disparo.impactado = True
                         break
@@ -273,6 +285,12 @@ class Level:
                 self.jugador.recibir_daño()
                 SoundManager.play("enemigo_muere")
                 enemigo.vivo = False
+                self.explosiones.append({
+                    "x": enemigo.x,
+                    "y": enemigo.y,
+                    "start": time.time(),
+                    "dur": 0.2  # duración de la animación
+                })
 
         # BONUS
         if self.bonus_actual and self.bonus_actual.activo:
@@ -300,6 +318,10 @@ class Level:
             self.bonus_usados_nivel.clear()
             for e in self.enemigos:
                 e.reiniciar()
+        # Actualizar explosiones
+        for ex in self.explosiones[:]:  # ← importante copiar la lista
+            if time.time() - ex["start"] > ex["dur"]:
+                self.explosiones.remove(ex)
 
     def draw(self, surface):
 
@@ -331,6 +353,20 @@ class Level:
         if self.bonus_actual and self.bonus_actual.activo:
             self.bonus_actual.dibujar(surface)
 
+        # Dibujar explosiones
+        for ex in self.explosiones:
+            progreso = (time.time() - ex["start"]) / ex["dur"]
+            if progreso > 1:
+                continue  # por si alguna no fue borrada aún
+
+            alpha = int(255 * (1 - progreso))
+            radio = int(20 * (1 + progreso))
+
+            capa = pygame.Surface((radio*2, radio*2), pygame.SRCALPHA)
+            pygame.draw.circle(capa, (255,180,0,alpha), (radio,radio), radio)
+            pygame.draw.circle(capa, (255,80,0,alpha), (radio,radio), radio//2)
+
+            surface.blit(capa, (ex["x"] - radio, ex["y"] - radio))
 
         # === Indicador de vidas (parte inferior izquierda) ===
         base_x = 30
