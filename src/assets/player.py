@@ -2,7 +2,7 @@ import pygame
 import time
 from assets.proyectile import Disparo
 from assets.colors import Colors
-from assets.sound_manager import SoundManager
+from assets.sound_manager import SoundManager 
 
 class Jugador:
     def __init__(self,screen):
@@ -25,6 +25,7 @@ class Jugador:
         self.ultimo_sonido_mov = 0
         self.estela = []  # lista de posiciones para la estela
         self.estela_max = 15  # máximo de "partículas" visibles
+        self.daño_acumulado = 0
 
         # Image por defecto
         try:
@@ -148,8 +149,44 @@ class Jugador:
             self.vida -= 1
         self.invulnerable_hasta = time.time() + 1
 
+    def recibir_impacto_disparo(self, tipo_disparo):
+        if time.time() < self.invulnerable_hasta:
+            return  # aún invulnerable, no recibe daño
+
+    def recibir_impacto_disparo(self, tipo_disparo):
+        if time.time() < self.invulnerable_hasta:
+            return  # aún invulnerable, no recibe daño
+
+        if self.escudo > 0:
+            # --- Daño al escudo ---
+            capas_perdidas = 2 if tipo_disparo == "cargado" else 1
+            self.escudo -= capas_perdidas
+            if self.escudo < 0:
+                self.escudo = 0
+
+        else:
+            # --- Daño sin escudo ---
+            if tipo_disparo == "basico":
+                self.daño_acumulado += 1
+                if self.daño_acumulado >= 2:
+                    self.vida -= 1
+                    self.daño_acumulado = 0
+
+            elif tipo_disparo == "cargado":
+                self.vida -= 1
+                self.daño_acumulado = 0
+
+        # Pequeña invulnerabilidad tras impacto
+        self.invulnerable_hasta = time.time() + 0.3
+
+    def reducir_capas_escudo(self, capas):
+        if self.escudo > 0:
+            self.escudo -= capas
+            if self.escudo < 0:
+                self.escudo = 0
+
     def aplicar_bonus(self, tipo):
-        if tipo == "vida" and self.vida < 3:
+        if tipo == "vida" and self.vida < 5:
             self.vida += 1
         elif tipo == "doble_puntos":
             self.doble_puntos = True
@@ -200,3 +237,8 @@ class Jugador:
             print(f"Imagen del jugador actualizada: {ruta_imagen}")
         except Exception as e:
             print(f"Error al cargar la imagen {ruta_imagen}: {e}")
+            
+    @property
+    def tiene_escudo(self):
+        """Permite consultar si el jugador tiene escudo activo."""
+        return self.escudo > 0

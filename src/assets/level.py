@@ -10,6 +10,7 @@ from assets.player import Jugador
 from assets.enemy import Enemigo
 from assets.bonus import Bonus
 from assets.colors import Colors
+from assets.enemy_projectile import DisparoEnemigo
 from assets.sound_manager import SoundManager
 
 class Level:
@@ -29,6 +30,9 @@ class Level:
         self.siguiente_bonus = random.randint(3, 4)
         self.nivel = 1
         self.tipo_patron = 1
+        self.disparos_enemigos = []
+        self.ultimo_disparo_enemigo = 0
+        self.frecuencia_disparo = 1000  # milisegundos entre disparos
 
         # Control de animación del brillo de bonus activos
         self.tiempo_inicio = time.time()
@@ -56,6 +60,9 @@ class Level:
         self.espacio_y = 55
         self.filas = 6
         self.crear_formacion_enemigos()
+        # Se inicializa con la formación actual (solo vivos)
+        self.enemies_to_shoot = [e for e in self.enemigos if e.vivo]
+        random.shuffle(self.enemies_to_shoot)  # mezcla el orden para aleatoriedad
 
         self.direccion_x = 1
         self.vel_x = 2
@@ -174,6 +181,40 @@ class Level:
 
         self.mover_enemigos(self.tipo_patron,dt)
 
+        # === DISPAROS DE ENEMIGOS ===
+        tiempo_actual = pygame.time.get_ticks()
+
+        if tiempo_actual - self.ultimo_disparo_enemigo >= self.frecuencia_disparo:
+            self.ultimo_disparo_enemigo = tiempo_actual
+
+            # Mantener solo enemigos vivos
+            self.enemies_to_shoot = [e for e in self.enemies_to_shoot if e.vivo]
+
+            # Reiniciar el ciclo si todos ya dispararon
+            if not self.enemies_to_shoot:
+                self.enemies_to_shoot = [e for e in self.enemigos if e.vivo]
+                random.shuffle(self.enemies_to_shoot)
+
+            if self.enemies_to_shoot:
+                enemigo = self.enemies_to_shoot.pop(0)
+
+                # Verificar si ya existe un disparo cargado activo
+                hay_disparo_cargado_en_pantalla = any(
+                    d.tipo == "cargado" and d.activo for d in self.disparos_enemigos
+                )
+
+                # Seleccionar tipo de disparo
+                if not hay_disparo_cargado_en_pantalla and not enemigo.ya_disparo_cargado:
+                    tipo_disparo = "cargado"
+                else:
+                    tipo_disparo = "basico"
+
+                #Solo dispara si está dentro de pantalla (usa el nuevo método)
+                if enemigo.puede_disparar():
+                    disparo = enemigo.disparar(tipo_disparo)
+                    if disparo:
+                        self.disparos_enemigos.append(disparo)
+
         # Disparos y colisiones
         for disparo in self.disparos[:]:
             if(disparo.tipo == "rastreador"):
@@ -205,7 +246,7 @@ class Level:
                     if enemigo.colisiona_con_disparo(disparo) and not disparo.impactado:
                         SoundManager.play("enemigo_muere")
                         enemigo.vivo = False
-                        self.jugador.puntos += 10 * (2 if self.jugador.doble_puntos else 1)
+                        self.jugador.puntos += 200 * (2 if self.jugador.doble_puntos else 1)
                         disparo.impactado = True
                         break
                 if disparo.impactado:
@@ -213,6 +254,18 @@ class Level:
                     continue
             if disparo.y < -50 or disparo.y > Level.ALTO + 50:
                 self.disparos.remove(disparo)
+
+        # === Movimiento y colisión de disparos enemigos ===
+        for disparo in self.disparos_enemigos[:]:
+            disparo.mover()
+            if disparo.y > Level.ALTO:
+                self.disparos_enemigos.remove(disparo)
+                continue
+
+            if disparo.colisiona_con(self.jugador):
+                if disparo.colisiona_con(self.jugador):
+                    self.jugador.recibir_impacto_disparo(disparo.tipo)
+                    self.disparos_enemigos.remove(disparo)
 
         # Colisión jugador-enemigo
         for enemigo in self.enemigos:
@@ -224,7 +277,7 @@ class Level:
         # BONUS
         if self.bonus_actual and self.bonus_actual.activo:
             self.bonus_actual.mover()
-            if not self.bonus_actual.recogido:  # 💡 solo puede colisionar si no fue recogido
+            if not self.bonus_actual.recogido:  #olo puede colisionar si no fue recogido
                 if self.bonus_actual.colisiona_con(self.jugador):
                     self.jugador.asignar_bonus_tecla(self.bonus_actual.tipo)
                     SoundManager.play("bonus")
@@ -272,6 +325,8 @@ class Level:
         for enemigo in self.enemigos:
             enemigo.dibujar(surface)
         for disparo in self.disparos:
+            disparo.dibujar(surface)
+        for disparo in self.disparos_enemigos:
             disparo.dibujar(surface)
         if self.bonus_actual and self.bonus_actual.activo:
             self.bonus_actual.dibujar(surface)
