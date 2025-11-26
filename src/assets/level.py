@@ -21,7 +21,22 @@ class Level:
     def __init__(self, manager):
         self.fuente = pygame.font.Font(None, 28)
         self.manager = manager  # Referencia al StateManager
-        self.jugador = Jugador(manager.screen)
+        # Crear instancias separadas por jugador para poder alternar realmente
+        self.jugadores_inst = {
+            1: Jugador(manager.screen),
+            2: Jugador(manager.screen)
+        }
+        # Intentar dar una apariencia distinta al jugador 2 si existe la imagen
+        try:
+            ruta_j2 = os.path.join(os.path.dirname(__file__), "..", "..", "resources", "imgs", "player_ship_2.png")
+            ruta_j2 = os.path.abspath(ruta_j2)
+            if os.path.exists(ruta_j2):
+                self.jugadores_inst[2].cambiar_imagen(ruta_j2)
+        except Exception:
+            pass
+
+        # Referencia al jugador activo
+        self.jugador = self.jugadores_inst[1]
         self.disparos = []
         self.bonus_actual = None
         self.bonus_usados_nivel = set()
@@ -32,6 +47,41 @@ class Level:
 
         # Control de animación del brillo de bonus activos
         self.tiempo_inicio = time.time()
+
+        # === SISTEMA DE TURNOS ===
+        self.jugador_actual = 1  # 1 o 2
+        self.total_jugadores = 2  # Puedes cambiarlo a 1 para single player
+        
+        # Guardar estado de cada jugador
+        self.jugadores_data = {
+            1: {"puntos": 0, "vidas": 3, "bonus_teclas": {i: 0 for i in range(1, 6)}},
+            2: {"puntos": 0, "vidas": 3, "bonus_teclas": {i: 0 for i in range(1, 6)}}
+        }
+        
+        # === POPUP DE CAMBIO DE TURNO ===
+        self.popup_active = False
+        self.popup_font = pygame.font.Font(None, 40)
+        self.game_paused = False
+        
+        popup_width, popup_height = 500, 300
+        self.popup_rect = pygame.Rect(
+            (Level.ANCHO - popup_width) // 2,
+            (Level.ALTO - popup_height) // 2,
+            popup_width,
+            popup_height
+        )
+        
+        # Importar Button
+        from widgets.button import Button
+        
+        # Botón OK del popup (se crea aquí pero se posiciona cuando se muestra)
+        self.popup_button = Button(
+            text="Continue",
+            pos=(0, 0),  # Se actualizará en show_player_lost_popup
+            font=self.popup_font,
+            on_click=self.cambiar_turno,
+            size=(250, 60)
+        )
 
         # Fondo
         ruta_fondo = os.path.join(os.path.dirname(__file__), "..", "..", "resources", "imgs", "fondo.png")
@@ -81,7 +131,7 @@ class Level:
                     pygame.image.load(ruta_icono).convert_alpha(), (40, 40)
                 )
             else:
-                print(f"⚠️ No se encontró el icono de bonus: {ruta_icono}")
+                print(f" No se encontró el icono de bonus: {ruta_icono}")
                 self.iconos_bonus[tecla] = None
 
         # Informacion jugadores
@@ -89,7 +139,7 @@ class Level:
                 font=self.fuente,
                 pos=(20, 20),
                 size=(100, 100),
-                name="",
+                name="Player 1",
                 photo="./resources/imgs/disponible.png"
             )
 
@@ -97,10 +147,9 @@ class Level:
                 font=self.fuente,
                 pos=(Level.ANCHO - 120, 20),
                 size=(100, 100),
-                name="",
+                name="Player 2",
                 photo="./resources/imgs/disponible.png"
         )
-
 
         help_text = (
             "Welcome to GalactaTEC!\n\n"
@@ -125,6 +174,59 @@ class Level:
                 screen_size=[Level.ANCHO,Level.ALTO]
         )
 
+        # Cargar estado inicial del jugador 1
+        self.cargar_estado_jugador(1)
+
+    def guardar_estado_jugador(self, jugador_num):
+        """Guarda el estado actual del jugador en jugadores_data"""
+        # Guardar desde la instancia del jugador
+        self.jugadores_data[jugador_num]["puntos"] = self.jugadores_inst[jugador_num].puntos
+        self.jugadores_data[jugador_num]["vidas"] = self.jugadores_inst[jugador_num].vida
+        self.jugadores_data[jugador_num]["bonus_teclas"] = self.jugadores_inst[jugador_num].bonus_teclas.copy()
+
+    def cargar_estado_jugador(self, jugador_num):
+        """Carga el estado del jugador desde jugadores_data"""
+        # Apuntar la referencia al jugador correspondiente
+        self.jugador = self.jugadores_inst[jugador_num]
+        # Cargar los valores guardados en la instancia
+        self.jugador.puntos = self.jugadores_data[jugador_num]["puntos"]
+        self.jugador.vida = self.jugadores_data[jugador_num]["vidas"]
+        self.jugador.bonus_teclas = self.jugadores_data[jugador_num]["bonus_teclas"].copy()
+
+    def show_player_lost_popup(self):
+        """Muestra el popup cuando el jugador pierde una vida"""
+        self.popup_active = True
+        self.game_paused = True
+        
+        # Actualizar posición del botón OK
+        button_x = self.popup_rect.centerx - 125
+        button_y = self.popup_rect.bottom - 80
+        self.popup_button.update_pos((button_x, button_y))
+
+    def cambiar_turno(self):
+        """Cambia al siguiente jugador"""
+        # Guardar estado del jugador actual
+        self.guardar_estado_jugador(self.jugador_actual)
+        
+        # Cambiar al siguiente jugador
+        self.jugador_actual = 2 if self.jugador_actual == 1 else 1
+        
+        # Cargar estado del nuevo jugador
+        self.cargar_estado_jugador(self.jugador_actual)
+        
+        # Cerrar popup y reanudar juego
+        self.popup_active = False
+        self.game_paused = False
+        
+        # Reiniciar posición del jugador
+        self.jugador.x = Level.ANCHO // 2 - self.jugador.tamaño // 2
+        self.jugador.y = Level.ALTO - 100
+        
+        print(f" Turno del Jugador {self.jugador_actual}")
+
+    def close_popup(self):
+        """Cierra el popup y cambia de turno"""
+        self.cambiar_turno()
 
     def crear_formacion_enemigos(self):
         self.enemigos.clear()
@@ -133,13 +235,20 @@ class Level:
             for col in range(enemigos_en_fila):
                 x = Level.ANCHO//2 - (enemigos_en_fila * self.espacio_x)//2 + col * self.espacio_x
                 y = -200 + fila * self.espacio_y
-                self.enemigos.append(Enemigo(x, y,self.manager.screen))
+                self.enemigos.append(Enemigo(x, y, self.manager.screen))
 
     def handle_events(self):
         for evento in pygame.event.get():
             if evento.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
+            
+            # === MANEJO DE EVENTOS DEL POPUP ===
+            if self.popup_active:
+                self.popup_button.handle_event(evento)
+                continue #return  # No procesar otros eventos mientras el popup está activo
+            
+            # === EVENTOS NORMALES DEL JUEGO ===
             if evento.type == pygame.KEYDOWN:
                 if evento.key == pygame.K_SPACE:
                     self.jugador.disparar(self.disparos)
@@ -147,13 +256,11 @@ class Level:
                     self.jugador.usar_bonus(evento.key - pygame.K_1 + 1)
 
                 if evento.key == pygame.K_j:
-                    # Bajar volumen (mínimo 0.0)
                     volumen_actual = pygame.mixer.music.get_volume()
                     nuevo_volumen = max(0.0, volumen_actual - 0.1)
                     pygame.mixer.music.set_volume(nuevo_volumen)
                     print(f" Volumen bajado a: {nuevo_volumen:.1f}")
                 elif evento.key == pygame.K_k:
-                    # Subir volumen (máximo 1.0)
                     volumen_actual = pygame.mixer.music.get_volume()
                     nuevo_volumen = min(1.0, volumen_actual + 0.1)
                     pygame.mixer.music.set_volume(nuevo_volumen)
@@ -162,26 +269,37 @@ class Level:
             # Botón de ayuda
             self.help_button.handle_event(evento)
 
-        teclas = pygame.key.get_pressed()
-        self.jugador.mover(teclas)
-
+        if not self.popup_active:
+            teclas = pygame.key.get_pressed()
+            self.jugador.mover(teclas)
 
     def update(self, dt):
+        # Si el popup está activo, no actualizar el juego
+        if self.popup_active or self.game_paused:
+            return
+
+        # Verificar si el jugador perdió todas sus vidas
         if self.jugador.vida <= 0:
-            self.game_over = True
+            # Verificar si ambos jugadores perdieron
+            self.guardar_estado_jugador(self.jugador_actual)
+            if all(data["vidas"] <= 0 for data in self.jugadores_data.values()):
+                self.game_over = True
+            else:
+                # Mostrar popup de cambio de turno
+                self.show_player_lost_popup()
             return
 
         self.jugador.actualizar_bonus()
-
-        self.mover_enemigos(self.tipo_patron,dt)
+        self.mover_enemigos(self.tipo_patron, dt)
 
         # Disparos y colisiones
         for disparo in self.disparos[:]:
-            if(disparo.tipo == "rastreador"):
+            if disparo.tipo == "rastreador":
                 enemigos = self.enemigos
             else:
                 enemigos = None
             disparo.mover(enemigos)
+            
             if disparo.tipo == "area":
                 if not disparo.impactado:
                     for enemigo in self.enemigos:
@@ -212,25 +330,41 @@ class Level:
                 if disparo.impactado:
                     self.disparos.remove(disparo)
                     continue
+            
             if disparo.y < -50 or disparo.y > Level.ALTO + 50:
                 self.disparos.remove(disparo)
 
-        # Colisión jugador-enemigo
+        # === COLISIÓN JUGADOR-ENEMIGO (MODIFICADO) ===
         for enemigo in self.enemigos:
             if enemigo.vivo and enemigo.colisiona_con_jugador(self.jugador):
-                self.jugador.recibir_daño()
-                SoundManager.play("enemigo_muere")
+                #  Destruir AMBAS naves
                 enemigo.vivo = False
+                SoundManager.play("enemigo_muere")
+                
+                # El jugador recibe daño (pierde una vida)
+                self.jugador.recibir_daño()
+                
+                # Si el jugador aún tiene vidas, mostrar popup
+                if self.jugador.vida > 0:
+                    self.show_player_lost_popup()
+                else:
+                    # Si perdió todas las vidas, guardar y verificar game over
+                    self.guardar_estado_jugador(self.jugador_actual)
+                    if all(data["vidas"] <= 0 for data in self.jugadores_data.values()):
+                        self.game_over = True
+                    else:
+                        self.show_player_lost_popup()
+                
+                break  # Solo una colisión por frame
 
         # BONUS
         if self.bonus_actual and self.bonus_actual.activo:
             self.bonus_actual.mover()
-            if not self.bonus_actual.recogido:  # 💡 solo puede colisionar si no fue recogido
+            if not self.bonus_actual.recogido:
                 if self.bonus_actual.colisiona_con(self.jugador):
                     self.jugador.asignar_bonus_tecla(self.bonus_actual.tipo)
                     SoundManager.play("bonus")
             else:
-                # Si ya fue recogido, dejamos que termine su animación
                 if not self.bonus_actual.activo:
                     self.bonus_actual = None
 
@@ -244,30 +378,33 @@ class Level:
         # Nueva ronda
         if all(not e.vivo for e in self.enemigos):
             self.nivel += 1
-            self.puntos_para_siguiente_nivel += 200
             self.bonus_usados_nivel.clear()
             for e in self.enemigos:
                 e.reiniciar()
 
     def draw(self, surface):
-
         # Dibujar fondo dos veces para scroll continuo
         surface.blit(self.fondo, (0, self.fondo_y))
         surface.blit(self.fondo, (0, self.fondo_y - self.fondo.get_height()))
 
-        # Mover fondo
-        self.fondo_y += self.fondo_vel
-        if self.fondo_y >= self.fondo.get_height():
-            self.fondo_y = 0
+        # Mover fondo (se detiene si el popup está activo)
+        if not self.popup_active:
+            self.fondo_y += self.fondo_vel
+            if self.fondo_y >= self.fondo.get_height():
+                self.fondo_y = 0
 
-        #Dibujar informacion jugadores
-        self.user_1_info.update_info(score=self.jugador.puntos)
+        # Dibujar información jugadores
+        # Mostrar puntajes en tiempo real desde las instancias de jugador
+        self.user_1_info.update_info(score=self.jugadores_inst[1].puntos)
         self.user_1_info.draw(surface)
 
-        # Si hay un segundo jugador, también se muestra
-        if self.user_2_info:
+        if self.total_jugadores >= 2:
+            self.user_2_info.update_info(score=self.jugadores_inst[2].puntos)
             self.user_2_info.draw(surface)
 
+        # Indicador de turno actual
+        turno_text = self.fuente.render(f"Turn: Player {self.jugador_actual}", True, Colors.BLANCO)
+        surface.blit(turno_text, (Level.ANCHO // 2 - 80, 30))
 
         self.jugador.dibujar(surface)
         for enemigo in self.enemigos:
@@ -277,26 +414,20 @@ class Level:
         if self.bonus_actual and self.bonus_actual.activo:
             self.bonus_actual.dibujar(surface)
 
-
-        # === Indicador de vidas (parte inferior izquierda) ===
+        # === Indicador de vidas ===
         base_x = 30
         base_y = Level.ALTO - 70
         separacion = 45
         tamaño_icono = 30
 
-        # --- Fondo del panel de vidas ---
         total_ancho = separacion * max(self.jugador.vida, 3)
         fondo_rect = pygame.Rect(base_x - 15, base_y - 10, total_ancho + 20, tamaño_icono + 20)
 
-        # Fondo oscuro semitransparente
         fondo = pygame.Surface((fondo_rect.width, fondo_rect.height), pygame.SRCALPHA)
-        fondo.fill((20, 20, 20, 180))  # RGBA → 180 = transparencia
+        fondo.fill((20, 20, 20, 180))
         surface.blit(fondo, fondo_rect.topleft)
-
-        # Borde del panel
         pygame.draw.rect(surface, (200, 200, 200), fondo_rect, width=2, border_radius=12)
 
-        # --- Dibujar los íconos de vida ---
         for i in range(self.jugador.vida):
             if self.jugador.imagen:
                 icono_vida = pygame.transform.scale(self.jugador.imagen, (tamaño_icono, tamaño_icono))
@@ -304,25 +435,22 @@ class Level:
                 y = base_y
                 surface.blit(icono_vida, (x, y))
 
-        # === Barra de bonus (parte inferior derecha) ===
+        # === Barra de bonus ===
         barra_ancho = 320
         barra_alto = 70
         barra_x = Level.ANCHO - barra_ancho - 30
         barra_y = Level.ALTO - barra_alto - 30
 
-        # Fondo de la barra
         pygame.draw.rect(surface, (30, 30, 30), (barra_x, barra_y, barra_ancho, barra_alto), border_radius=10)
         pygame.draw.rect(surface, (200, 200, 200), (barra_x, barra_y, barra_ancho, barra_alto), 2, border_radius=10)
 
-        # Posición inicial de los íconos
         base_x = barra_x + 25
         base_y = barra_y + 15
         separacion = 55
 
-        # Calcular intensidad del brillo (parpadeo suave)
         t = time.time() - self.tiempo_inicio
-        brillo = int((math.sin(t * 3) + 1) * 127)  # rango 0–254
-        color_brillo = (brillo, brillo, 255)  # azul brillante parpadeante
+        brillo = int((math.sin(t * 3) + 1) * 127)
+        color_brillo = (brillo, brillo, 255)
 
         for i in range(1, 6):
             valor = self.jugador.bonus_teclas[i]
@@ -331,29 +459,15 @@ class Level:
             icono = self.iconos_bonus.get(i)
             if icono:
                 icono_final = icono.copy()
-
                 if not activo:
-                    # Convertir icono a gris uniforme manteniendo transparencia
                     icono_final.fill((100, 100, 100, 180), special_flags=pygame.BLEND_RGBA_MULT)
 
-                # Dibujar icono
                 x_icono = base_x + (i - 1) * separacion
                 y_icono = base_y
                 surface.blit(icono_final, (x_icono, y_icono))
 
-                # Marco para los activos (con brillo animado)
                 if activo:
-                    pygame.draw.rect(
-                        surface,
-                        color_brillo,
-                        (x_icono - 2, y_icono - 2, 44, 44),
-                        2,
-                        border_radius=5
-                    )
-            else:
-                # Mostrar número si no hay icono
-                txt = self.fuente.render(str(i), True, Colors.BLANCO)
-                surface.blit(txt, (base_x + (i - 1) * separacion + 15, base_y + 10))
+                    pygame.draw.rect(surface, color_brillo, (x_icono - 2, y_icono - 2, 44, 44), 2, border_radius=5)
 
         # Game Over
         if self.game_over:
@@ -363,14 +477,52 @@ class Level:
         # Dibujar botón de ayuda
         self.help_button.draw(surface)
 
+        # === DIBUJAR POPUP ===
+        if self.popup_active:
+            self.draw_popup(surface)
 
-    def mover_enemigos(self, tipo_patron,dt):
+    def draw_popup(self, surface):
+        """Dibuja el popup de cambio de turno"""
+        # Fondo semi-transparente
+        overlay = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 200))
+        surface.blit(overlay, (0, 0))
+
+        # Cuadro del popup
+        pygame.draw.rect(surface, (40, 40, 60), self.popup_rect, border_radius=15)
+        pygame.draw.rect(surface, (255, 100, 100), self.popup_rect, 4, border_radius=15)
+
+        # Título
+        title = self.popup_font.render(f"Player {self.jugador_actual} Lost!", True, (255, 255, 255))
+        surface.blit(title, (self.popup_rect.centerx - title.get_width() // 2, self.popup_rect.y + 40))
+
+        # Mensaje
+        mensaje_font = pygame.font.Font(None, 32)
+        vidas_restantes = self.jugador.vida
+        
+        if vidas_restantes > 0:
+            msg = f"Lives remaining: {vidas_restantes}"
+            msg2 = f"Next turn: Player {2 if self.jugador_actual == 1 else 1}"
+        else:
+            otro_jugador = 2 if self.jugador_actual == 1 else 1
+            msg = "All lives lost!"
+            msg2 = f"Player {otro_jugador}'s turn"
+
+        texto1 = mensaje_font.render(msg, True, (255, 255, 255))
+        texto2 = mensaje_font.render(msg2, True, (100, 255, 100))
+        
+        surface.blit(texto1, (self.popup_rect.centerx - texto1.get_width() // 2, self.popup_rect.centery - 30))
+        surface.blit(texto2, (self.popup_rect.centerx - texto2.get_width() // 2, self.popup_rect.centery + 10))
+
+        # Botón OK
+        self.popup_button.draw(surface)
+
+    def mover_enemigos(self, tipo_patron, dt):
         vivos = [e for e in self.enemigos if e.vivo]
         if not vivos:
             return
         
         if tipo_patron == 1:
-            # Movimiento clásico: van a un lado y bajan cuando tocan bordes
             max_x = max(e.x for e in vivos) + 40
             min_x = min(e.x for e in vivos)
             if max_x >= Level.ANCHO - 10:
@@ -385,59 +537,42 @@ class Level:
                 e.mover(self.vel_x * self.direccion_x * 5, 0)
 
         elif tipo_patron == 2:
-            # Movimiento zigzag vertical + horizontal
             for e in self.enemigos:
-                # Alternar dirección vertical para cada enemigo según fila o id
                 direccion_y = self.vel_y/3 if (e.x // 50) % 2 == 0 else -self.vel_y/6
                 e.mover(self.vel_x * self.direccion_x, direccion_y)
 
-            # Invertir dirección horizontal al tocar bordes
             max_x = max(e.x for e in vivos) + 40
             min_x = min(e.x for e in vivos)
             if max_x >= Level.ANCHO - 10 or min_x <= 10:
                 self.direccion_x *= -1
 
         elif tipo_patron == 3:
-            # Bajada constante en Y
-            delta_y = self.vel_y / 12  # movimiento vertical lento
-            
-            # Invertir dirección horizontal al tocar bordes
+            delta_y = self.vel_y / 12
             max_x = max(e.x for e in vivos) + 40
             min_x = min(e.x for e in vivos)
 
             if max_x >= Level.ANCHO - 10 or min_x <= 10:
                 self.direccion_x *= -1
             for e in self.enemigos:
-                # Calculamos cuánto mover en X: diferencia entre base_x y la posición actual del enemigo
-                
-                # Movemos horizontal y verticalmente
                 e.mover(self.direccion_x * 3 * math.sin(e.y / 100), delta_y)
 
         elif tipo_patron == 4:
-            # Movimiento oscilante horizontal con bajada periódica
             for e in self.enemigos:
                 e.mover(self.vel_x * self.direccion_x, 0)
             
-            # Bajar y cambiar dirección cada cierto tiempo
             if pygame.time.get_ticks() % 2000 < 50:
                 self.direccion_x *= -1
                 for e in self.enemigos:
                     e.mover(0, self.vel_y)
 
         elif tipo_patron == 5:
-            # Movimiento aleatorio controlado
             for e in self.enemigos:
-          # Si sale por la derecha, reaparece por la izquierda
                 if e.x > Level.ANCHO:
                     e.x = 0
-            
-                # Si sale por la izquierda, reaparece por la derecha
                 elif e.x < 0:
                     e.x = Level.ANCHO
                 dx = random.randint(-self.vel_x* 8, self.vel_x* 8)
                 dy = random.randint(0, self.vel_y)
                 e.mover(dx, dy)
-
         else:
-            # Patrón por defecto: mismo que 1
-            self.mover_enemigos(1,dt)
+            self.mover_enemigos(1, dt)
