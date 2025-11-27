@@ -192,35 +192,76 @@ class Options:
         pass
 
     def start_game(self,args):
+        self.game.start_playthrough()
+
         logged_users = list(main_window.logged_users)
+        if not logged_users:
+            return
+
+        # Mezclar orden cuando hay más de un jugador para variar quién inicia
         if len(logged_users) > 1:
             random.shuffle(logged_users)
-            second_player = logged_users[1]
-            player_2_info = self.game.players[second_player]
-        else:   
-            second_player = None
-            
-        first_player = logged_users[0]
-        player_1_info = self.game.players[first_player]
 
+        # Crear mapping 1..N -> username
+        player_mapping = {i+1: username for i, username in enumerate(logged_users)}
 
-        # Imagen de la nave
-        self.game.states[args].jugador.cambiar_imagen(player_1_info['ship_image'])
+        # Guardar la asociación jugador-numero en la instancia del nivel
+        self.game.states[args].player_usernames = player_mapping
 
-        # Imagen de perfil
+        # Aplicar mapping en la instancia del nivel (crea instancias de jugadores y aplica patrón)
+        try:
+            self.game.states[args].apply_player_usernames()
+        except Exception:
+            pass
 
-        # Musica
-        music = SoundManager.cargar_musica("",player_1_info['music_pref'])
+        # Asignar imágenes de nave y fotos para los primeros dos widgets si existen
+        for idx, username in player_mapping.items():
+            info = self.game.players.get(username)
+            if not info:
+                continue
+            try:
+                # Si el jugador idx tiene instancia, actualizar su imagen
+                inst = self.game.states[args].jugadores_inst.get(idx)
+                if inst and info.get('ship_image'):
+                    inst.cambiar_imagen(info['ship_image'])
+            except Exception:
+                pass
 
-        #User Info
-        self.game.states[args].user_1_info.update_info(first_player,player_1_info['photo_path'],0)
-        if(second_player):
-            self.game.states[args].user_2_info.update_info(second_player,player_2_info['photo_path'],0)
+        # Música y UserInfo para los dos widgets (si existen)
+        first_player = player_mapping.get(1)
+        if first_player:
+            player_1_info = self.game.players.get(first_player, {})
+            try:
+                music = SoundManager.cargar_musica("", player_1_info.get('music_pref'))
+            except Exception:
+                pass
+            try:
+                self.game.states[args].user_1_info.update_info(first_player, player_1_info.get('photo_path'), 0)
+            except Exception:
+                pass
+
+        second_player = player_mapping.get(2)
+        if second_player:
+            player_2_info = self.game.players.get(second_player, {})
+            try:
+                self.game.states[args].user_2_info.update_info(second_player, player_2_info.get('photo_path'), 0)
+            except Exception:
+                pass
         else:
             self.game.states[args].user_2_info = None
 
-        # Patron enemigo
-        self.game.states[args].tipo_patron = self.game.patterns[self.active_player][1]
+        # Establecer active_player y current_player en el StateManager
+        self.active_player = first_player
+        self.game.current_player = first_player
+
+        # Asegurar patrón inicial por si aún no fue aplicado
+        try:
+            patrones_usuario = self.game.patterns.get(first_player, {})
+            patron_inicial = patrones_usuario.get(1, None)
+            if patron_inicial is not None:
+                self.game.states[args].tipo_patron = patron_inicial
+        except Exception:
+            pass
 
         # Cambio de pantalla
         self.game.change_state(args)

@@ -554,8 +554,26 @@ class RegisterWindow:
             photo_dest = os.path.join(img_dest_dir, photo_filename)
 
             # Copiar archivos (sobrescribe si ya existe)
-            shutil.copy2(self.selected_music, music_dest)
-            shutil.copy2(self.selected_profile_pic, photo_dest)
+            try:
+                src_music = os.path.abspath(self.selected_music)
+                dst_music = os.path.abspath(music_dest)
+                if src_music != dst_music:
+                    shutil.copy2(src_music, dst_music)
+                else:
+                    # Ya es el mismo archivo: no copiar
+                    print(f"Music file already in destination: {dst_music}")
+            except Exception as e:
+                print(f"Error copying music file: {e}")
+
+            try:
+                src_photo = os.path.abspath(self.selected_profile_pic)
+                dst_photo = os.path.abspath(photo_dest)
+                if src_photo != dst_photo:
+                    shutil.copy2(src_photo, dst_photo)
+                else:
+                    print(f"Photo file already in destination: {dst_photo}")
+            except Exception as e:
+                print(f"Error copying photo file: {e}")
 
             # Actualizar variables con las nuevas rutas
             music = music_dest
