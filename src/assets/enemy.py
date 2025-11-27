@@ -3,7 +3,7 @@ import os
 from assets.colors import Colors 
 
 class Enemigo:
-    def __init__(self, x, y, screen):
+    def __init__(self, x, y, screen, image_path=None):
         self.x_inicial = x
         self.y_inicial = y
         self.x = x
@@ -11,11 +11,19 @@ class Enemigo:
         self.tamaño = 40
         self.vivo = True
         self.ALTO = screen.get_size()[1]
-
-        ruta_img = os.path.join(os.path.dirname(__file__), "..", "..", "resources", "imgs", "enemigo.png")
-        ruta_img = os.path.abspath(ruta_img)  # Convierte a ruta absoluta, por seguridad
-        self.imagen = pygame.image.load(ruta_img).convert_alpha()
-        self.imagen = pygame.transform.scale(self.imagen, (self.tamaño, self.tamaño))
+        # Si se proporciona una ruta de imagen, usarla; si no, usar el enemy por defecto
+        try:
+            if image_path:
+                ruta_img = image_path
+            else:
+                ruta_img = os.path.join(os.path.dirname(__file__), "..", "..", "resources", "imgs", "enemigo.png")
+                ruta_img = os.path.abspath(ruta_img)
+            self.imagen = pygame.image.load(ruta_img).convert_alpha()
+            self.imagen = pygame.transform.scale(self.imagen, (self.tamaño, self.tamaño))
+        except Exception:
+            # Fallback: crear superficie simple si la imagen falla
+            self.imagen = pygame.Surface((self.tamaño, self.tamaño), pygame.SRCALPHA)
+            self.imagen.fill((200, 50, 50))
 
     def dibujar(self, superficie):
         if self.vivo:

@@ -445,6 +445,11 @@ class Level:
                 self.cargar_estado_jugador(1)
             except Exception:
                 pass
+            # Recrear la formación para que use la imagen correspondiente al nivel del jugador
+            try:
+                self.restart_level()
+            except Exception:
+                pass
         except Exception:
             pass
 
@@ -625,12 +630,28 @@ class Level:
 
     def crear_formacion_enemigos(self):
         self.enemigos.clear()
+        # Seleccionar imagen según el nivel actual
+        try:
+            img_name = "enemigo.png"
+            if getattr(self, 'nivel', 1) == 2:
+                img_name = "enemigo2.png"
+            elif getattr(self, 'nivel', 1) == 3:
+                img_name = "enemigo3.png"
+            ruta_img = os.path.join(os.path.dirname(__file__), "..", "..", "resources", "imgs", img_name)
+            ruta_img = os.path.abspath(ruta_img)
+        except Exception:
+            ruta_img = None
+
         for fila in range(self.filas):
             enemigos_en_fila = self.filas - fila
             for col in range(enemigos_en_fila):
                 x = Level.ANCHO//2 - (enemigos_en_fila * self.espacio_x)//2 + col * self.espacio_x
                 y = -400 + fila * self.espacio_y
-                self.enemigos.append(Enemigo(x, y, self.manager.screen))
+                # Pasar la ruta de la imagen al crear cada enemigo
+                if ruta_img:
+                    self.enemigos.append(Enemigo(x, y, self.manager.screen, image_path=ruta_img))
+                else:
+                    self.enemigos.append(Enemigo(x, y, self.manager.screen))
 
     def restart_level(self):
         """Reinicia el estado del nivel actual (enemigos, disparos y bonus)
