@@ -186,13 +186,26 @@ class Jugador:
                 self.escudo = 0
 
     def aplicar_bonus(self, tipo):
-        if tipo == "vida" and self.vida < 5:
-            self.vida += 1
-        elif tipo == "doble_puntos":
+        if tipo == "doble_puntos":
             self.doble_puntos = True
             self.doble_puntos_fin = time.time() + 15
         elif tipo == "escudo":
             self.escudo = 3
+        elif tipo == "vida":
+            # Incrementar vidas en 1 al usar el bonus de vida
+            try:
+                # No forzamos un tope aquí; se puede añadir un cap si se desea
+                self.vida = int(self.vida) + 1
+            except Exception:
+                try:
+                    self.vida += 1
+                except Exception:
+                    pass
+            # Reproducir sonido de bonus si existe
+            try:
+                SoundManager.play("bonus")
+            except Exception:
+                pass
 
     def actualizar_bonus(self):
         if self.doble_puntos and time.time() > self.doble_puntos_fin:
