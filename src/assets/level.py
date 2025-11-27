@@ -10,6 +10,7 @@ from assets.player import Jugador
 from assets.enemy import Enemigo
 from assets.bonus import Bonus
 from assets.colors import Colors
+from assets.enemy_projectile import DisparoEnemigo
 from assets.sound_manager import SoundManager
 
 class Level:
@@ -44,6 +45,10 @@ class Level:
         self.siguiente_bonus = random.randint(3, 4)
         self.nivel = 1
         self.tipo_patron = 1
+        self.disparos_enemigos = []
+        self.ultimo_disparo_enemigo = 0
+        self.frecuencia_disparo = 1000  # milisegundos entre disparos
+        self.explosiones = []
         # Número máximo de niveles por playthrough
         self.max_niveles = 3
 
@@ -110,6 +115,9 @@ class Level:
         self.espacio_y = 55
         self.filas = 8
         self.crear_formacion_enemigos()
+        # Se inicializa con la formación actual (solo vivos)
+        self.enemies_to_shoot = [e for e in self.enemigos if e.vivo]
+        random.shuffle(self.enemies_to_shoot)  # mezcla el orden para aleatoriedad
 
         self.direccion_x = 1
         self.vel_x = 2
@@ -786,6 +794,27 @@ class Level:
 
         # Verificar si el jugador perdió todas sus vidas
         if self.jugador.vida <= 0:
+            # Construir lista de jugadores
+            players_data = []
+
+            # Jugador 1
+            players_data.append({
+                "name": self.user_1_info.name,
+                "photo": self.user_1_info.photo_path,
+                "score": self.jugador.puntos
+            })
+
+            # Jugador 2 si existe
+            if hasattr(self, "jugador2") and self.jugador2 is not None:
+                players_data.append({
+                    "name": self.user_2_info.name,
+                    "photo": self.self.user_2_info.photo_path,
+                    "score": self.jugador2.puntos
+                })
+
+            # Enviar resultados al estado END_GAME
+            self.manager.states["END_GAME"].set_results(players_data)
+            self.manager.change_state("END_GAME")
             # Verificar si ambos jugadores perdieron
             self.guardar_estado_jugador(self.jugador_actual)
             # Marcar jugador actual como finalizado si se quedó sin vidas
@@ -804,6 +833,40 @@ class Level:
 
         self.jugador.actualizar_bonus()
         self.mover_enemigos(self.tipo_patron, dt)
+
+        # === DISPAROS DE ENEMIGOS ===
+        tiempo_actual = pygame.time.get_ticks()
+
+        if tiempo_actual - self.ultimo_disparo_enemigo >= self.frecuencia_disparo:
+            self.ultimo_disparo_enemigo = tiempo_actual
+
+            # Mantener solo enemigos vivos
+            self.enemies_to_shoot = [e for e in self.enemies_to_shoot if e.vivo]
+
+            # Reiniciar el ciclo si todos ya dispararon
+            if not self.enemies_to_shoot:
+                self.enemies_to_shoot = [e for e in self.enemigos if e.vivo]
+                random.shuffle(self.enemies_to_shoot)
+
+            if self.enemies_to_shoot:
+                enemigo = self.enemies_to_shoot.pop(0)
+
+                # Verificar si ya existe un disparo cargado activo
+                hay_disparo_cargado_en_pantalla = any(
+                    d.tipo == "cargado" and d.activo for d in self.disparos_enemigos
+                )
+
+                # Seleccionar tipo de disparo
+                if not hay_disparo_cargado_en_pantalla and not enemigo.ya_disparo_cargado:
+                    tipo_disparo = "cargado"
+                else:
+                    tipo_disparo = "basico"
+
+                #Solo dispara si está dentro de pantalla (usa el nuevo método)
+                if enemigo.puede_disparar():
+                    disparo = enemigo.disparar(tipo_disparo)
+                    if disparo:
+                        self.disparos_enemigos.append(disparo)
 
         # Disparos y colisiones
         for disparo in self.disparos[:]:
@@ -827,6 +890,12 @@ class Level:
                             if math.hypot(dx, dy) <= disparo.explosion_radio:
                                 SoundManager.play("enemigo_muere")
                                 enemigo.vivo = False
+                                self.explosiones.append({
+                                    "x": enemigo.x,
+                                    "y": enemigo.y,
+                                    "start": time.time(),
+                                    "dur": 0.2  # duración de la animación
+                                })
                                 self.jugador.puntos += 10 * (2 if self.jugador.doble_puntos else 1)
                     disparo.explosion_frames -= 1
                     if disparo.explosion_frames <= 0:
@@ -837,7 +906,13 @@ class Level:
                     if enemigo.colisiona_con_disparo(disparo) and not disparo.impactado:
                         SoundManager.play("enemigo_muere")
                         enemigo.vivo = False
-                        self.jugador.puntos += 10 * (2 if self.jugador.doble_puntos else 1)
+                        self.explosiones.append({
+                            "x": enemigo.x,
+                            "y": enemigo.y,
+                            "start": time.time(),
+                            "dur": 0.2  # duración de la animación
+                        })
+                        self.jugador.puntos += 200 * (2 if self.jugador.doble_puntos else 1)
                         disparo.impactado = True
                         break
                 if disparo.impactado:
@@ -847,11 +922,30 @@ class Level:
             if disparo.y < -50 or disparo.y > Level.ALTO + 50:
                 self.disparos.remove(disparo)
 
+        # === Movimiento y colisión de disparos enemigos ===
+        for disparo in self.disparos_enemigos[:]:
+            disparo.mover()
+            if disparo.y > Level.ALTO:
+                self.disparos_enemigos.remove(disparo)
+                continue
+
+            if disparo.colisiona_con(self.jugador):
+                if disparo.colisiona_con(self.jugador):
+                    self.jugador.recibir_impacto_disparo(disparo.tipo)
+                    self.disparos_enemigos.remove(disparo)
+
+        # Colisión jugador-enemigo
         # === COLISIÓN JUGADOR-ENEMIGO (MODIFICADO) ===
         for enemigo in self.enemigos:
             if enemigo.vivo and enemigo.colisiona_con_jugador(self.jugador):
                 #  Destruir AMBAS naves
                 enemigo.vivo = False
+                self.explosiones.append({
+                    "x": enemigo.x,
+                    "y": enemigo.y,
+                    "start": time.time(),
+                    "dur": 0.2  # duración de la animación
+                })
                 SoundManager.play("enemigo_muere")
                 
                 # El jugador recibe daño (pierde una vida)
@@ -880,7 +974,7 @@ class Level:
         # BONUS
         if self.bonus_actual and self.bonus_actual.activo:
             self.bonus_actual.mover()
-            if not self.bonus_actual.recogido:
+            if not self.bonus_actual.recogido:  #olo puede colisionar si no fue recogido
                 if self.bonus_actual.colisiona_con(self.jugador):
                     self.jugador.asignar_bonus_tecla(self.bonus_actual.tipo)
                     SoundManager.play("bonus")
@@ -897,6 +991,15 @@ class Level:
 
         # Nueva ronda: si todos los enemigos murieron, mostrar popup de nivel completado
         if all(not e.vivo for e in self.enemigos):
+            self.nivel += 1
+            self.puntos_para_siguiente_nivel += 200
+            self.bonus_usados_nivel.clear()
+            for e in self.enemigos:
+                e.reiniciar()
+        # Actualizar explosiones
+        for ex in self.explosiones[:]:  # ← importante copiar la lista
+            if time.time() - ex["start"] > ex["dur"]:
+                self.explosiones.remove(ex)
             # Mostrar popup en lugar de reiniciar inmediatamente
             self.show_level_cleared_popup()
 
@@ -939,9 +1042,27 @@ class Level:
             enemigo.dibujar(surface)
         for disparo in self.disparos:
             disparo.dibujar(surface)
+        for disparo in self.disparos_enemigos:
+            disparo.dibujar(surface)
         if self.bonus_actual and self.bonus_actual.activo:
             self.bonus_actual.dibujar(surface)
 
+        # Dibujar explosiones
+        for ex in self.explosiones:
+            progreso = (time.time() - ex["start"]) / ex["dur"]
+            if progreso > 1:
+                continue  # por si alguna no fue borrada aún
+
+            alpha = int(255 * (1 - progreso))
+            radio = int(20 * (1 + progreso))
+
+            capa = pygame.Surface((radio*2, radio*2), pygame.SRCALPHA)
+            pygame.draw.circle(capa, (255,180,0,alpha), (radio,radio), radio)
+            pygame.draw.circle(capa, (255,80,0,alpha), (radio,radio), radio//2)
+
+            surface.blit(capa, (ex["x"] - radio, ex["y"] - radio))
+
+        # === Indicador de vidas (parte inferior izquierda) ===
         # === Indicador de vidas ===
         base_x = 30
         base_y = Level.ALTO - 70

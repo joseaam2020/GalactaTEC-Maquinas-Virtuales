@@ -192,6 +192,8 @@ class Options:
         pass
 
     def start_game(self,args):
+        self.game.start_playthrough()
+
         logged_users = list(main_window.logged_users)
         if not logged_users:
             return
