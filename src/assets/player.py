@@ -31,7 +31,7 @@ class Jugador:
             self.imagen_original = pygame.image.load("./resources/imgs/player_ship_1.png").convert_alpha()
             self.imagen = pygame.transform.scale(self.imagen_original, (self.tamaño, self.tamaño))
         except FileNotFoundError:
-            print("⚠️ No se encontró 'assets/player.png'. Se usará el rectángulo por defecto.")
+            print("No se encontró 'assets/player.png'. Se usará el rectángulo por defecto.")
             self.imagen = None
 
     def mover(self, teclas):

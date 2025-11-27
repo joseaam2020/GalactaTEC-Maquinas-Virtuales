@@ -15,7 +15,7 @@ from assets.sound_manager import SoundManager
 class Level:
     ANCHO, ALTO = 1280, 720
     pantalla = pygame.display.set_mode((ANCHO, ALTO))
-    pygame.display.set_caption("Juego Space Invaders con Bonus y Disparos")
+    pygame.display.set_caption("Juego GalactaTEC")
     clock = pygame.time.Clock()
 
     def __init__(self, manager):
@@ -56,8 +56,8 @@ class Level:
         
         # Guardar estado de cada jugador (vidas iniciales = 5)
         self.jugadores_data = {
-            1: {"puntos": 0, "vidas": 5, "bonus_teclas": {i: 0 for i in range(1, 6)}, "finished": False},
-            2: {"puntos": 0, "vidas": 5, "bonus_teclas": {i: 0 for i in range(1, 6)}, "finished": False}
+            1: {"puntos": 0, "vidas": 5, "bonus_teclas": {i: 0 for i in range(1, 6)}, "finished": False, "nivel": 1},
+            2: {"puntos": 0, "vidas": 5, "bonus_teclas": {i: 0 for i in range(1, 6)}, "finished": False, "nivel": 1}
         }
         
         # === POPUP DE CAMBIO DE TURNO ===
@@ -189,6 +189,11 @@ class Level:
         self.jugadores_data[jugador_num]["puntos"] = self.jugadores_inst[jugador_num].puntos
         self.jugadores_data[jugador_num]["vidas"] = self.jugadores_inst[jugador_num].vida
         self.jugadores_data[jugador_num]["bonus_teclas"] = self.jugadores_inst[jugador_num].bonus_teclas.copy()
+        # Guardar nivel actual del jugador
+        try:
+            self.jugadores_data[jugador_num]["nivel"] = self.nivel
+        except Exception:
+            pass
 
     def cargar_estado_jugador(self, jugador_num):
         """Carga el estado del jugador desde jugadores_data"""
@@ -198,6 +203,12 @@ class Level:
         self.jugador.puntos = self.jugadores_data[jugador_num]["puntos"]
         self.jugador.vida = self.jugadores_data[jugador_num]["vidas"]
         self.jugador.bonus_teclas = self.jugadores_data[jugador_num]["bonus_teclas"].copy()
+        # Cargar y aplicar el nivel del jugador
+        try:
+            nivel_j = self.jugadores_data[jugador_num].get("nivel", 1)
+            self.nivel = nivel_j
+        except Exception:
+            pass
         # Actualizar el patrón de vuelo según el jugador actual (si hay mapping de usernames)
         try:
             username = None
@@ -459,8 +470,10 @@ class Level:
             # Si el popup está bloqueado por otro flujo (ej. Game Over), no sobrescribimos
             pass
         else:
-            # Si el jugador actual completó el máximo de niveles, marcarlo como finished
-            if self.nivel >= getattr(self, 'max_niveles', 3):
+            # Usar el nivel del jugador actual almacenado en jugadores_data
+            nivel_actual = self.jugadores_data.get(self.jugador_actual, {}).get('nivel', self.nivel)
+            # Si el jugador completó su último nivel
+            if nivel_actual >= getattr(self, 'max_niveles', 3):
                 # Marcar jugador actual como finalizado
                 try:
                     if self.jugador_actual in self.jugadores_data:
@@ -468,7 +481,7 @@ class Level:
                 except Exception:
                     pass
 
-                # Verificar si quedan jugadores activos (vidas>0 y no finished)
+                # Verificar si quedan jugadores activos (vidas>0 y not finished)
                 otros_activos = False
                 try:
                     for idx, data in self.jugadores_data.items():
@@ -489,6 +502,7 @@ class Level:
                     self.popup_button.on_click = self.finish_playthrough
                     self.popup_button.update_text("Continue")
             else:
+                # Permitir que el mismo jugador avance al siguiente nivel
                 self.popup_button.on_click = self.next_level
                 self.popup_button.update_text("Next Level")
         try:
@@ -530,15 +544,23 @@ class Level:
 
     def next_level(self):
         """Avanza al siguiente nivel usando el patrón elegido por el jugador, recrea enemigos."""
-        # Incrementar nivel
-        self.nivel += 1
+        # Incrementar el nivel del jugador actual (progreso por jugador)
+        try:
+            if self.jugador_actual in self.jugadores_data:
+                self.jugadores_data[self.jugador_actual]['nivel'] = self.jugadores_data[self.jugador_actual].get('nivel', self.nivel) + 1
+                self.nivel = self.jugadores_data[self.jugador_actual]['nivel']
+        except Exception:
+            self.nivel = self.nivel + 1
 
         # Determinar patrón para el siguiente nivel desde manager.patterns si existe
         try:
-            current_player = getattr(self.manager, 'current_player', None)
-            if current_player and current_player in self.manager.patterns:
-                patrones = self.manager.patterns[current_player]
-                # patrones es un dict con claves 1,2,3 -> elegir según nivel (si no existe, conservar)
+            username = None
+            if hasattr(self, 'player_usernames'):
+                username = self.player_usernames.get(self.jugador_actual)
+            if not username:
+                username = getattr(self.manager, 'current_player', None)
+            if username and username in getattr(self.manager, 'patterns', {}):
+                patrones = self.manager.patterns[username]
                 nuevo_patron = patrones.get(self.nivel, None)
                 if nuevo_patron is not None:
                     self.tipo_patron = nuevo_patron
@@ -629,6 +651,23 @@ class Level:
         # Opcional: resetear scroll de fondo para que el nivel parezca reiniciado
         try:
             self.fondo_y = 0
+        except Exception:
+            pass
+        # Asegurar que los enemigos y patrón correspondan al nivel del jugador actual
+        try:
+            # Ajustar tipo_patron según el jugador actual y su nivel
+            username = None
+            if hasattr(self, 'player_usernames'):
+                username = self.player_usernames.get(self.jugador_actual)
+            if not username:
+                username = getattr(self.manager, 'current_player', None)
+            nivel_j = self.jugadores_data.get(self.jugador_actual, {}).get('nivel', self.nivel)
+            self.nivel = nivel_j
+            if username and username in getattr(self.manager, 'patterns', {}):
+                patrones = self.manager.patterns[username]
+                patron = patrones.get(self.nivel, None)
+                if patron is not None:
+                    self.tipo_patron = patron
         except Exception:
             pass
 
@@ -915,13 +954,20 @@ class Level:
             title = self.popup_font.render("Level Cleared!", True, (255, 255, 255))
             surface.blit(title, (self.popup_rect.centerx - title.get_width() // 2, self.popup_rect.y + 40))
 
-            # Intentar obtener el patrón siguiente para mostrarlo
+            # Intentar obtener el patrón siguiente para mostrarlo usando el nivel del jugador actual
             try:
-                current_player = getattr(self.manager, 'current_player', None)
+                jugador_idx = self.jugador_actual
+                nivel_j = self.jugadores_data.get(jugador_idx, {}).get('nivel', self.nivel)
+                next_lvl = nivel_j + 1
                 next_pattern = None
-                if current_player and current_player in self.manager.patterns:
-                    patrones = self.manager.patterns[current_player]
-                    next_pattern = patrones.get(self.nivel + 1, None)
+                username = None
+                if hasattr(self, 'player_usernames'):
+                    username = self.player_usernames.get(jugador_idx)
+                if not username:
+                    username = getattr(self.manager, 'current_player', None)
+                if username and username in self.manager.patterns:
+                    patrones = self.manager.patterns[username]
+                    next_pattern = patrones.get(next_lvl, None)
                 if next_pattern is None:
                     msg = f"Next level: Pattern {self.tipo_patron}"
                 else:
