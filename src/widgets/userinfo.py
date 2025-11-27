@@ -7,6 +7,7 @@ class UserInfo:
         self.size:list = size  # (width, height)
         self.name = name
         self.score = score
+        self.photo_path = photo
 
         # Cargar imagen del usuario
         try:
@@ -59,6 +60,7 @@ class UserInfo:
         if score is not None:
             self.score = score
         if photo is not None:
+            self.photo_path = photo
             try:
                 self.image = pygame.image.load(photo).convert_alpha()
                 self.image = pygame.transform.smoothscale(self.image, self.size)

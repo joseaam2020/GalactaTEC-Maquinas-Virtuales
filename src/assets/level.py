@@ -174,7 +174,27 @@ class Level:
 
     def update(self, dt):
         if self.jugador.vida <= 0:
-            self.game_over = True
+            # Construir lista de jugadores
+            players_data = []
+
+            # Jugador 1
+            players_data.append({
+                "name": self.user_1_info.name,
+                "photo": self.user_1_info.photo_path,
+                "score": self.jugador.puntos
+            })
+
+            # Jugador 2 si existe
+            if hasattr(self, "jugador2") and self.jugador2 is not None:
+                players_data.append({
+                    "name": self.user_2_info.name,
+                    "photo": self.self.user_2_info.photo_path,
+                    "score": self.jugador2.puntos
+                })
+
+            # Enviar resultados al estado END_GAME
+            self.manager.states["END_GAME"].set_results(players_data)
+            self.manager.change_state("END_GAME")
             return
 
         self.jugador.actualizar_bonus()
