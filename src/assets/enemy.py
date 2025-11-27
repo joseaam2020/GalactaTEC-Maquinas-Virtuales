@@ -35,6 +35,7 @@ class Enemigo:
         if self.vivo:
             self.x += dx
             self.y += dy
+            
             if self.y > self.ALTO:
                 self.y = -self.tamaño  # reaparece arriba
  
