@@ -434,6 +434,23 @@ class Level:
                 except Exception:
                     pass
 
+            # === CARGAR MÚSICA DEL NIVEL ===
+            try:
+                music_loaded = False
+                user_music_map = getattr(self.manager, 'player_music', {})
+                music_pref = None
+                if user_music_map:
+                    music_pref = user_music_map.get(first_username, {}).get(self.nivel)
+                if music_pref:
+                    from assets.sound_manager import SoundManager
+                    music_loaded = SoundManager.cargar_musica("./resources/audio/", music_pref)
+                if not music_loaded:
+                    default_music = f"game_music{self.nivel}.mp3"
+                    from assets.sound_manager import SoundManager
+                    SoundManager.cargar_musica("./resources/audio/", default_music)
+            except Exception as e:
+                print(f"[MUSIC] Error loading music for level {self.nivel}: {e}")
+
             # Asegurar que el widget muestre los nombres correctos
             try:
                 self.update_userinfo_names()
@@ -572,6 +589,23 @@ class Level:
         except Exception:
             pass
 
+        # === CARGAR MÚSICA DEL NIVEL ===
+        try:
+            music_loaded = False
+            user_music_map = getattr(self.manager, 'player_music', {})
+            music_pref = None
+            if user_music_map and username:
+                music_pref = user_music_map.get(username, {}).get(self.nivel)
+            if music_pref:
+                from assets.sound_manager import SoundManager
+                music_loaded = SoundManager.cargar_musica("./resources/audio/", music_pref)
+            if not music_loaded:
+                default_music = f"game_music{self.nivel}.mp3"
+                from assets.sound_manager import SoundManager
+                SoundManager.cargar_musica("./resources/audio/", default_music)
+        except Exception as e:
+            print(f"[MUSIC] Error loading music for level {self.nivel}: {e}")
+
         # Reiniciar estado de enemigo/bonus para el nuevo nivel
         self.bonus_usados_nivel.clear()
         self.ultimo_bonus_tiempo = time.time()
@@ -691,6 +725,23 @@ class Level:
                     self.tipo_patron = patron
         except Exception:
             pass
+
+        # === CARGAR MÚSICA DEL NIVEL ===
+        try:
+            music_loaded = False
+            user_music_map = getattr(self.manager, 'player_music', {})
+            music_pref = None
+            if user_music_map and username:
+                music_pref = user_music_map.get(username, {}).get(self.nivel)
+            if music_pref:
+                from assets.sound_manager import SoundManager
+                music_loaded = SoundManager.cargar_musica("./resources/audio/", music_pref)
+            if not music_loaded:
+                default_music = f"game_music{self.nivel}.mp3"
+                from assets.sound_manager import SoundManager
+                SoundManager.cargar_musica("./resources/audio/", default_music)
+        except Exception as e:
+            print(f"[MUSIC] Error loading music for level {self.nivel}: {e}")
 
     def handle_events(self):
         for evento in pygame.event.get():
