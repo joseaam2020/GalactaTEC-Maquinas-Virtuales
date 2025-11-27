@@ -546,28 +546,35 @@ class Level:
         self.popup_button.update_pos((button_x, button_y))
 
     def show_game_over_popup(self):
-        """Muestra el popup de Game Over y regresa a Options al continuar."""
-        self.popup_type = 'game_over'
-        self.popup_active = True
-        self.game_paused = True
-
-        # Pausar música mientras el popup está activo
+        """Enviar resultados y terminar la playthrough (fallback muestra popup visual)."""
         try:
-            pygame.mixer.music.pause()
+            players_data = self._build_players_data()
+            # Enviar resultados al estado END_GAME y cambiar de estado
+            if hasattr(self, 'manager') and 'END_GAME' in getattr(self.manager, 'states', {}):
+                try:
+                    self.manager.states["END_GAME"].set_results(players_data)
+                except Exception:
+                    pass
+            try:
+                self.manager.change_state("END_GAME")
+                return
+            except Exception:
+                pass
         except Exception:
             pass
 
-        # Botón continúa a Options
+        # Fallback visual si no se pudo cambiar al estado END_GAME
+        self.popup_type = 'game_over'
+        self.popup_active = True
+        self.game_paused = True
         self.popup_button.on_click = self.finish_playthrough
-        # Bloquear para que ningún otro popup sobrescriba este destino
         self.popup_locked = True
         self.popup_button.update_text("Continue")
         try:
             self.popup_button.text_surf = self.popup_font.render(self.popup_button.text, True, (255,255,255))
         except Exception:
             pass
-
-        # Actualizar posición del botón OK
+        # Posicionar el botón OK
         button_x = self.popup_rect.centerx - 125
         button_y = self.popup_rect.bottom - 80
         self.popup_button.update_pos((button_x, button_y))
@@ -655,8 +662,30 @@ class Level:
         except Exception:
             pass
 
-        # Opcional: limpiar o reiniciar estado de level si se requiere
-        # Volver a la ventana de Options
+        # Intentar enviar resultados al estado END_GAME y cambiar a esa pantalla
+        try:
+            players_data = self._build_players_data()
+            if hasattr(self, 'manager') and 'END_GAME' in getattr(self.manager, 'states', {}):
+                try:
+                    # Pasar resultados al EndGameScreen y cambiar de estado
+                    try:
+                        self.manager.states["END_GAME"].set_results(players_data)
+                    except Exception:
+                        pass
+                    try:
+                        self.manager.change_state("END_GAME")
+                        return
+                    except Exception:
+                        # fallback a asignar current_state si change_state falla
+                        if hasattr(self.manager, 'states') and 'END_GAME' in self.manager.states:
+                            self.manager.current_state = self.manager.states['END_GAME']
+                            return
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+        # Fallback: volver a Options si no existe END_GAME o no se pudo cambiar
         try:
             self.manager.change_state("OPTIONS")
         except Exception:
@@ -794,28 +823,7 @@ class Level:
 
         # Verificar si el jugador perdió todas sus vidas
         if self.jugador.vida <= 0:
-            # Construir lista de jugadores
-            players_data = []
-
-            # Jugador 1
-            players_data.append({
-                "name": self.user_1_info.name,
-                "photo": self.user_1_info.photo_path,
-                "score": self.jugador.puntos
-            })
-
-            # Jugador 2 si existe
-            if hasattr(self, "jugador2") and self.jugador2 is not None:
-                players_data.append({
-                    "name": self.user_2_info.name,
-                    "photo": self.self.user_2_info.photo_path,
-                    "score": self.jugador2.puntos
-                })
-
-            # Enviar resultados al estado END_GAME
-            self.manager.states["END_GAME"].set_results(players_data)
-            self.manager.change_state("END_GAME")
-            # Verificar si ambos jugadores perdieron
+            # Guardar estado del jugador que murió
             self.guardar_estado_jugador(self.jugador_actual)
             # Marcar jugador actual como finalizado si se quedó sin vidas
             try:
@@ -823,13 +831,35 @@ class Level:
                     self.jugadores_data[self.jugador_actual]['finished'] = True
             except Exception:
                 pass
-            if all(data["vidas"] <= 0 for data in self.jugadores_data.values()):
-                # Mostrar popup de Game Over (todos los jugadores perdieron)
-                self.show_game_over_popup()
-            else:
-                # Mostrar popup de cambio de turno
-                self.show_player_lost_popup()
-            return
+
+            # Si TODOS los jugadores no tienen vidas -> enviar resultados y cambiar a END_GAME
+            try:
+                # Considerar sólo los slots activos (1..total_jugadores)
+                total = getattr(self, 'total_jugadores', 1)
+                active_players = [data for idx, data in self.jugadores_data.items() if idx <= total]
+                if all(data.get("vidas", 0) <= 0 for data in active_players):
+                     players_data = self._build_players_data()
+                     try:
+                         if hasattr(self, 'manager') and 'END_GAME' in getattr(self.manager, 'states', {}):
+                             self.manager.states["END_GAME"].set_results(players_data)
+                     except Exception:
+                         pass
+                     try:
+                         self.manager.change_state("END_GAME")
+                         return
+                     except Exception:
+                         pass
+                else:
+                    # Mostrar popup de cambio de turno (muerte individual)
+                    self.show_player_lost_popup()
+                    return
+            except Exception:
+                # En caso de cualquier error, intentar mostrar popup de cambio de turno
+                try:
+                    self.show_player_lost_popup()
+                except Exception:
+                    pass
+                return
 
         self.jugador.actualizar_bonus()
         self.mover_enemigos(self.tipo_patron, dt)
@@ -862,11 +892,58 @@ class Level:
                 else:
                     tipo_disparo = "basico"
 
-                #Solo dispara si está dentro de pantalla (usa el nuevo método)
-                if enemigo.puede_disparar():
-                    disparo = enemigo.disparar(tipo_disparo)
+                # Determinar si se permite disparar (método del enemigo o fallback)
+                allow_shoot = False
+                try:
+                    allow_shoot = bool(enemigo.puede_disparar())
+                except Exception:
+                    allow_shoot = True
+
+                # Permitir disparos desde arriba de la pantalla siempre
+                if getattr(enemigo, "y", 0) < 0:
+                    allow_shoot = True
+
+                if allow_shoot:
+                    disparo = None
+                    spawn_x = None
+                    spawn_y = None
+                    try:
+                        if hasattr(enemigo, "rect"):
+                            spawn_x = enemigo.rect.centerx
+                            spawn_y = enemigo.rect.bottom
+                        else:
+                            ex = getattr(enemigo, "x", None)
+                            ey = getattr(enemigo, "y", None)
+                            w = getattr(enemigo, "width", None) or getattr(enemigo, "ancho", None) or getattr(enemigo, "tamaño", None)
+                            h = getattr(enemigo, "height", None) or getattr(enemigo, "alto", None) or getattr(enemigo, "tamaño", None)
+                            if ex is not None and ey is not None:
+                                spawn_x = ex + (w / 2 if isinstance(w, (int, float)) else 0)
+                                spawn_y = ey + (h if isinstance(h, (int, float)) else 0)
+                    except Exception:
+                        spawn_x = None
+                        spawn_y = None
+
+                    # Crear el disparo en la posición calculada o usar el método del enemigo como fallback
+                    if spawn_x is not None and spawn_y is not None:
+                        try:
+                            disparo = DisparoEnemigo(spawn_x, spawn_y, tipo=tipo_disparo)
+                        except Exception:
+                            disparo = None
+
+                    if disparo is None and hasattr(enemigo, "disparar"):
+                        try:
+                            disparo = enemigo.disparar(tipo_disparo)
+                        except Exception:
+                            disparo = None
+
                     if disparo:
                         self.disparos_enemigos.append(disparo)
+                        # Marcar que el enemigo ya disparó cargado para evitar duplicados
+                        if tipo_disparo == "cargado":
+                            try:
+                                enemigo.ya_disparo_cargado = True
+                            except Exception:
+                                pass
 
         # Disparos y colisiones
         for disparo in self.disparos[:]:
@@ -933,41 +1010,44 @@ class Level:
                 continue
 
             if disparo.colisiona_con(self.jugador):
-                # Aplicar daño/efecto según tipo de disparo
+                # Aplicar daño/efecto según tipo de disparo, pero sólo mostrar popup si se perdió una vida
+                vidas_antes = getattr(self.jugador, "vida", 0)
                 try:
                     self.jugador.recibir_impacto_disparo(disparo.tipo)
                 except Exception:
                     # Fallback: restar una vida si el método falla
                     try:
-                        self.jugador.vida = max(0, self.jugador.vida - 1)
+                        self.jugador.vida = max(0, vidas_antes - 1)
                     except Exception:
                         pass
 
+                # Eliminar el disparo que impactó
                 try:
-                    # Eliminar el disparo que impactó
                     self.disparos_enemigos.remove(disparo)
                 except ValueError:
                     pass
 
-                # Guardar estado y mostrar popup según corresponda
+                # Si la vida disminuyó, guardar estado y mostrar popup (o game over)
                 try:
-                    # Guardar estado actual del jugador
-                    self.guardar_estado_jugador(self.jugador_actual)
-
-                    # Si el jugador se quedó sin vidas -> game over o siguiente jugador
-                    if self.jugador.vida <= 0:
+                    vidas_despues = getattr(self.jugador, "vida", 0)
+                    if vidas_despues < vidas_antes:
+                        # Guardar estado actual del jugador
+                        self.guardar_estado_jugador(self.jugador_actual)
                         try:
                             if self.jugador_actual in self.jugadores_data:
-                                self.jugadores_data[self.jugador_actual]['finished'] = True
+                                self.jugadores_data[self.jugador_actual]['finished'] = (vidas_despues <= 0)
                         except Exception:
                             pass
-                        if all(data.get("vidas", 0) <= 0 for data in self.jugadores_data.values()):
+
+                        total = getattr(self, 'total_jugadores', 1)
+                        active_players = [data for idx, data in self.jugadores_data.items() if idx <= total]
+                        if all(data.get("vidas", 0) <= 0 for data in active_players):
                             self.show_game_over_popup()
                         else:
                             self.show_player_lost_popup()
                     else:
-                        # Si aún tiene vidas, mostrar popup de vida perdida
-                        self.show_player_lost_popup()
+                        # Impacto no redujo vida (p. ej. escudo/contador): no mostrar popup
+                        pass
                 except Exception:
                     pass
 
@@ -1013,7 +1093,9 @@ class Level:
                             self.jugadores_data[self.jugador_actual]['finished'] = True
                     except Exception:
                         pass
-                    if all(data["vidas"] <= 0 for data in self.jugadores_data.values()):
+                    total = getattr(self, 'total_jugadores', 1)
+                    active_players = [data for idx, data in self.jugadores_data.items() if idx <= total]
+                    if all(data.get("vidas", 0) <= 0 for data in active_players):
                         # Mostrar popup de Game Over (todos los jugadores perdieron)
                         self.show_game_over_popup()
                     else:
@@ -1315,3 +1397,19 @@ class Level:
                 e.mover(dx, dy)
         else:
             self.mover_enemigos(1, dt)
+
+    def _build_players_data(self):
+        """Construye lista de jugadores para enviar a END_GAME de forma segura."""
+        players_data = []
+        total = getattr(self, 'total_jugadores', 1)
+        for idx in range(1, total + 1):
+            try:
+                user_info = getattr(self, f"user_{idx}_info", None)
+                name = getattr(user_info, "name", f"Player {idx}") if user_info else f"Player {idx}"
+                photo = getattr(user_info, "photo_path", getattr(user_info, "photo", "")) if user_info else ""
+                score = getattr(self.jugadores_inst.get(idx), "puntos", 0) if isinstance(self.jugadores_inst, dict) else (getattr(self.jugador, "puntos", 0) if idx == self.jugador_actual else 0)
+                players_data.append({"name": name, "photo": photo, "score": score})
+            except Exception:
+                players_data.append({"name": f"Player {idx}", "photo": "", "score": 0})
+ 
+        return players_data
