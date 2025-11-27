@@ -926,28 +926,78 @@ class Level:
         for disparo in self.disparos_enemigos[:]:
             disparo.mover()
             if disparo.y > Level.ALTO:
-                self.disparos_enemigos.remove(disparo)
+                try:
+                    self.disparos_enemigos.remove(disparo)
+                except ValueError:
+                    pass
                 continue
 
             if disparo.colisiona_con(self.jugador):
-                if disparo.colisiona_con(self.jugador):
+                # Aplicar daño/efecto según tipo de disparo
+                try:
                     self.jugador.recibir_impacto_disparo(disparo.tipo)
+                except Exception:
+                    # Fallback: restar una vida si el método falla
+                    try:
+                        self.jugador.vida = max(0, self.jugador.vida - 1)
+                    except Exception:
+                        pass
+
+                try:
+                    # Eliminar el disparo que impactó
                     self.disparos_enemigos.remove(disparo)
+                except ValueError:
+                    pass
+
+                # Guardar estado y mostrar popup según corresponda
+                try:
+                    # Guardar estado actual del jugador
+                    self.guardar_estado_jugador(self.jugador_actual)
+
+                    # Si el jugador se quedó sin vidas -> game over o siguiente jugador
+                    if self.jugador.vida <= 0:
+                        try:
+                            if self.jugador_actual in self.jugadores_data:
+                                self.jugadores_data[self.jugador_actual]['finished'] = True
+                        except Exception:
+                            pass
+                        if all(data.get("vidas", 0) <= 0 for data in self.jugadores_data.values()):
+                            self.show_game_over_popup()
+                        else:
+                            self.show_player_lost_popup()
+                    else:
+                        # Si aún tiene vidas, mostrar popup de vida perdida
+                        self.show_player_lost_popup()
+                except Exception:
+                    pass
 
         # Colisión jugador-enemigo
         # === COLISIÓN JUGADOR-ENEMIGO (MODIFICADO) ===
         for enemigo in self.enemigos:
             if enemigo.vivo and enemigo.colisiona_con_jugador(self.jugador):
-                #  Destruir AMBAS naves
+                #  Destruir AMBAS naves: marcar enemigo muerto y crear
+                #  animaciones de explosión para ENEMIGO y JUGADOR.
                 enemigo.vivo = False
+                # explosión para el enemigo (pequeña)
                 self.explosiones.append({
                     "x": enemigo.x,
                     "y": enemigo.y,
                     "start": time.time(),
-                    "dur": 0.2  # duración de la animación
+                    "dur": 0.25,
+                    "kind": "enemy",
+                    "base_radius": 20
+                })
+                # explosión para el jugador (más grande, más roja)
+                self.explosiones.append({
+                    "x": self.jugador.x + getattr(self.jugador, 'tamaño', 32) // 2,
+                    "y": self.jugador.y + getattr(self.jugador, 'tamaño', 32) // 2,
+                    "start": time.time(),
+                    "dur": 0.6,
+                    "kind": "player",
+                    "base_radius": 40
                 })
                 SoundManager.play("enemigo_muere")
-                
+
                 # El jugador recibe daño (pierde una vida)
                 self.jugador.recibir_daño()
                 
@@ -991,17 +1041,14 @@ class Level:
 
         # Nueva ronda: si todos los enemigos murieron, mostrar popup de nivel completado
         if all(not e.vivo for e in self.enemigos):
-            self.nivel += 1
-            self.puntos_para_siguiente_nivel += 200
-            self.bonus_usados_nivel.clear()
-            for e in self.enemigos:
-                e.reiniciar()
+            # Do not auto-increment level here — show the popup and let
+            # `next_level()` handle progression when the player confirms.
+            self.show_level_cleared_popup()
+
         # Actualizar explosiones
         for ex in self.explosiones[:]:  # ← importante copiar la lista
             if time.time() - ex["start"] > ex["dur"]:
                 self.explosiones.remove(ex)
-            # Mostrar popup en lugar de reiniciar inmediatamente
-            self.show_level_cleared_popup()
 
     def draw(self, surface):
         # Dibujar fondo dos veces para scroll continuo
@@ -1047,18 +1094,27 @@ class Level:
         if self.bonus_actual and self.bonus_actual.activo:
             self.bonus_actual.dibujar(surface)
 
-        # Dibujar explosiones
+        # Dibujar explosiones (usar 'kind' y 'base_radius' si están presentes)
         for ex in self.explosiones:
             progreso = (time.time() - ex["start"]) / ex["dur"]
             if progreso > 1:
                 continue  # por si alguna no fue borrada aún
 
             alpha = int(255 * (1 - progreso))
-            radio = int(20 * (1 + progreso))
+            base = ex.get("base_radius", 20)
+            radio = int(base * (1 + progreso))
 
             capa = pygame.Surface((radio*2, radio*2), pygame.SRCALPHA)
-            pygame.draw.circle(capa, (255,180,0,alpha), (radio,radio), radio)
-            pygame.draw.circle(capa, (255,80,0,alpha), (radio,radio), radio//2)
+            kind = ex.get("kind", "enemy")
+            if kind == "player":
+                outer_color = (255, 220, 200, alpha)
+                inner_color = (255, 40, 40, alpha)
+            else:
+                outer_color = (255,180,0,alpha)
+                inner_color = (255,80,0,alpha)
+
+            pygame.draw.circle(capa, outer_color, (radio,radio), radio)
+            pygame.draw.circle(capa, inner_color, (radio,radio), max(1, radio//2))
 
             surface.blit(capa, (ex["x"] - radio, ex["y"] - radio))
 
