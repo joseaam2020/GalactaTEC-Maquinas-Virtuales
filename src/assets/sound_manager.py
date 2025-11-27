@@ -20,6 +20,7 @@ class SoundManager:
             "enemigo_muere": SoundManager.cargar(SoundManager.base_path,"enemigo_muere.wav"),
             "bonus": SoundManager.cargar(SoundManager.base_path,"bonus.wav"),
             "jugador_mueve": SoundManager.cargar(SoundManager.base_path,"jugador_mueve.wav"),
+            "fanfarria": SoundManager.cargar(SoundManager.base_path, "fanfarria.wav"),
         }
 
         # Ajusta volúmenes
@@ -38,6 +39,11 @@ class SoundManager:
         jugador_mueve = SoundManager.sonidos["jugador_mueve"]
         if(jugador_mueve):
             jugador_mueve.set_volume(0.1)
+
+        fanfarria = SoundManager.sonidos.get("fanfarria")
+        if fanfarria:
+            # Subir un poco el volumen de la fanfarria
+            fanfarria.set_volume(0.60)
 
         SoundManager.inicializado = True
 
