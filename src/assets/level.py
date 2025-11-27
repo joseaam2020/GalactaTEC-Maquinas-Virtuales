@@ -45,10 +45,12 @@ class Level:
         self.siguiente_bonus = random.randint(3, 4)
         self.nivel = 1
         self.tipo_patron = 1
+        self.pausado = False
         self.disparos_enemigos = []
         self.ultimo_disparo_enemigo = 0
         self.frecuencia_disparo = 1000  # milisegundos entre disparos
         self.explosiones = []
+        
         # Número máximo de niveles por playthrough
         self.max_niveles = 3
 
@@ -145,6 +147,21 @@ class Level:
             else:
                 print(f" No se encontró el icono de bonus: {ruta_icono}")
                 self.iconos_bonus[tecla] = None
+
+        # Detectar Control
+        self.joystick = None
+        if pygame.joystick.get_count() == 0:
+            print("No se detectó ningún control. Se utilizan flechas de teclado")
+        else:
+            # Inicializar el joystick (DualShock 4)
+            self.joystick = pygame.joystick.Joystick(0)
+            self.joystick.init()
+            print(f"Control detectado: {self.joystick.get_name()}")
+            self.bonus_num = 0
+            self.tiempo_ultimo_disparo = 0
+            self.tiempo_ultimo_boton = 0
+            self.cooldown_disparo = 100  # milisegundos
+
 
         # Informacion jugadores
         self.user_1_info = UserInfo(
@@ -793,10 +810,17 @@ class Level:
             
             # === EVENTOS NORMALES DEL JUEGO ===
             if evento.type == pygame.KEYDOWN:
-                if evento.key == pygame.K_SPACE:
-                    self.jugador.disparar(self.disparos)
-                if pygame.K_1 <= evento.key <= pygame.K_5:
-                    self.jugador.usar_bonus(evento.key - pygame.K_1 + 1)
+                if evento.key == pygame.K_p:
+                    self.pausado = not self.pausado
+                    return   # Evita procesar movimiento/disparos durante este frame
+
+                if self.pausado: return
+
+                if(self.joystick is None):
+                    if evento.key == pygame.K_SPACE:
+                        self.jugador.disparar(self.disparos)
+                    if pygame.K_1 <= evento.key <= pygame.K_5:
+                        self.jugador.usar_bonus(evento.key - pygame.K_1 + 1)
 
                 if evento.key == pygame.K_j:
                     volumen_actual = pygame.mixer.music.get_volume()
@@ -812,11 +836,92 @@ class Level:
             # Botón de ayuda
             self.help_button.handle_event(evento)
 
-        if not self.popup_active:
+        if(self.joystick is None):
+
+            if self.pausado: return
             teclas = pygame.key.get_pressed()
             self.jugador.mover(teclas)
+        else:
+            tiempo_actual = pygame.time.get_ticks()
+
+            if self.joystick.get_button(9) and (tiempo_actual - self.tiempo_ultimo_boton > self.cooldown_disparo): # L1
+                self.pausado = not self.pausado
+                self.tiempo_ultimo_boton = tiempo_actual
+
+            if self.pausado: return
+
+
+            # Leer el joystick izquierdo para movimiento
+            eje_x = self.joystick.get_axis(0)  # Eje horizontal izquierdo
+            eje_y = self.joystick.get_axis(1)  # Eje vertical izquierdo
+
+            # Zona muerta para evitar drift
+            if abs(eje_x) < 0.1:
+                eje_x = 0
+            if abs(eje_y) < 0.1:
+                eje_y = 0
+
+            # Crear un diccionario simulando teclas
+            teclas_virtuales = {
+                pygame.K_LEFT:  eje_x < -0.2,
+                pygame.K_a:     eje_x < -0.2,
+
+                pygame.K_RIGHT: eje_x > 0.2,
+                pygame.K_d:     eje_x > 0.2,
+
+                pygame.K_UP:    eje_y < -0.2,
+                pygame.K_w:     eje_y < -0.2,
+
+                pygame.K_DOWN:  eje_y > 0.2,
+                pygame.K_s:     eje_y > 0.2,
+            }
+
+            # Mover jugador
+            self.jugador.mover(teclas_virtuales)
+
+            # Disparar 
+            if self.joystick.get_button(0):
+                if tiempo_actual - self.tiempo_ultimo_disparo > self.cooldown_disparo:
+                    self.jugador.disparar(self.disparos)
+                    self.tiempo_ultimo_disparo = tiempo_actual
+
+            #Bonus
+            # Obtener bonus activos
+            bonus_activos = [i for i in range(1, 6) if self.jugador.bonus_teclas[i]]
+
+            # Si no hay bonus activos -> no hay selección
+            if not bonus_activos:
+                self.bonus_num = 0
+
+            else:
+                # Si la selección actual ya no existe, seleccionar el primero
+                if self.bonus_num not in bonus_activos:
+                    self.bonus_num = bonus_activos[0]
+
+                # Índice dentro de la lista de activos
+                idx = bonus_activos.index(self.bonus_num)
+
+                # Navegar entre bonus activos
+                if self.joystick.get_button(4) and (tiempo_actual - self.tiempo_ultimo_boton > self.cooldown_disparo): # L1
+                    idx = (idx - 1) % len(bonus_activos)  # circular
+                    self.bonus_num = bonus_activos[idx]
+                    self.tiempo_ultimo_boton = tiempo_actual
+
+                if self.joystick.get_button(5) and (tiempo_actual - self.tiempo_ultimo_boton > self.cooldown_disparo): # R1
+                    idx = (idx + 1) % len(bonus_activos)  # circular
+                    self.bonus_num = bonus_activos[idx]
+                    self.tiempo_ultimo_boton = tiempo_actual
+
+            if self.joystick.get_button(1) and self.bonus_num > 0:
+                self.jugador.usar_bonus(self.bonus_num)
+
+
+
 
     def update(self, dt):
+        if self.pausado:
+            return  # No actualizar nada mientras está en pausa
+            
         # Si el popup está activo, no actualizar el juego
         if self.popup_active or self.game_paused:
             return
@@ -1055,6 +1160,10 @@ class Level:
         # === COLISIÓN JUGADOR-ENEMIGO (MODIFICADO) ===
         for enemigo in self.enemigos:
             if enemigo.vivo and enemigo.colisiona_con_jugador(self.jugador):
+                self.jugador.recibir_daño()
+                if(self.joystick is not None):
+                    self.joystick.rumble(0.7, 0.7, 500)  # vibración por 500ms
+                SoundManager.play("enemigo_muere")
                 #  Destruir AMBAS naves: marcar enemigo muerto y crear
                 #  animaciones de explosión para ENEMIGO y JUGADOR.
                 enemigo.vivo = False
@@ -1253,8 +1362,37 @@ class Level:
                 y_icono = base_y
                 surface.blit(icono_final, (x_icono, y_icono))
 
-                if activo:
-                    pygame.draw.rect(surface, color_brillo, (x_icono - 2, y_icono - 2, 44, 44), 2, border_radius=5)
+                # Marco para los activos (con brillo animado)
+                if self.joystick is not None:
+                    if activo and i == self.bonus_num:
+                                pygame.draw.rect(
+                                    surface,
+                                    color_brillo,               # azul animado
+                                    (x_icono - 2, y_icono - 2, 44, 44),
+                                    2,
+                                    border_radius=5
+                                )
+                    elif activo: 
+                        pygame.draw.rect(
+                            surface,
+                            (200, 200, 255),            # un azul claro estático
+                            (x_icono - 2, y_icono - 2, 44, 44),
+                            2,
+                            border_radius=5
+                        )
+                else:
+                    if activo:
+                        pygame.draw.rect(
+                            surface,
+                            color_brillo,
+                            (x_icono - 2, y_icono - 2, 44, 44),
+                            2,
+                            border_radius=5
+                        )
+            else:
+                # Mostrar número si no hay icono
+                txt = self.fuente.render(str(i), True, Colors.BLANCO)
+                surface.blit(txt, (base_x + (i - 1) * separacion + 15, base_y + 10))
 
         # Game Over
         if self.game_over:
@@ -1263,6 +1401,11 @@ class Level:
 
         # Dibujar botón de ayuda
         self.help_button.draw(surface)
+
+        # Dibujar mensaje de Pausa
+        if self.pausado:
+            texto = self.fuente.render("PAUSED", True, (255,255,255))
+            surface.blit(texto, (Level.ANCHO//2 - 50, Level.ALTO//2))
 
         # === DIBUJAR POPUP ===
         if self.popup_active:
