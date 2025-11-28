@@ -1092,13 +1092,13 @@ class Level:
                     # Crear el disparo en la posición calculada o usar el método del enemigo como fallback
                     if spawn_x is not None and spawn_y is not None:
                         try:
-                            disparo = DisparoEnemigo(spawn_x, spawn_y, tipo=tipo_disparo)
+                            disparo = DisparoEnemigo(spawn_x, spawn_y, tipo=tipo_disparo, nivel=self.nivel)
                         except Exception:
                             disparo = None
 
                     if disparo is None and hasattr(enemigo, "disparar"):
                         try:
-                            disparo = enemigo.disparar(tipo_disparo)
+                            disparo = enemigo.disparar(tipo_disparo, nivel=self.nivel)
                         except Exception:
                             disparo = None
 
