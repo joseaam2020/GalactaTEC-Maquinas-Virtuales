@@ -122,13 +122,24 @@ class EndGameScreen:
             new_scores[player["name"]] = {"score": player["score"]}
         self.manager.states["HALL_FAME"].set_new_scores(new_scores)  
         self.manager.states["HALL_FAME"].update_scores()  
+      
+        # Detener la música al volver al menú
+        try:
+            pygame.mixer.music.stop()
+        except Exception:
+            pass
 
         # Ir a salon de la fama
         self.manager.change_state("HALL_FAME")
 
     def restart(self):
         try:
-            # Reutiliza el manager para iniciar playthrough si existe
+            # Parar cualquier música/fanfarria antes de reiniciar la playthrough
+            try:
+                pygame.mixer.music.stop()
+            except Exception:
+                pass
+            # Reutiliza el manager para iniciar playthrough si existe (usa la lógica de logged_users)
             self.manager.start_playthrough()
         except Exception:
             # Fallback: cambiar a MAIN

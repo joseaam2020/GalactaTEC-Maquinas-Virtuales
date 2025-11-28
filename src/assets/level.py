@@ -126,6 +126,10 @@ class Level:
         self.vel_y = 20
 
         self.game_over = False
+        # Flag para suprimir un popup inmediatamente después de ciertos eventos (p.ej. escudo absorbe impacto)
+        self.suppress_popup = False
+        # Flag para indicar que al reiniciar el nivel deben limpiarse los bonuses activos del jugador
+        self.clear_bonuses_on_restart = False
 
         # Cargar íconos de bonus para HUD
         self.iconos_bonus = {}
@@ -259,6 +263,12 @@ class Level:
 
     def show_player_lost_popup(self):
         """Muestra el popup cuando el jugador pierde una vida"""
+        if getattr(self, 'suppress_popup', False):
+            try:
+                self.suppress_popup = False
+            except Exception:
+                pass
+            return
         self.popup_type = 'lost'
         self.popup_active = True
         self.game_paused = True
@@ -270,7 +280,7 @@ class Level:
             pass
 
         # Asegurar que el botón cierre popup y cambie turno (o continue en singleplayer)
-        # Si el popup está bloqueado (ej. Game Over), no sobrescribimos el destino.
+        # Si el popup está bloqueado, no sobrescribimos el destino.
         if getattr(self, 'popup_locked', False):
             pass
         else:
@@ -290,14 +300,13 @@ class Level:
         button_y = self.popup_rect.bottom - 80
         self.popup_button.update_pos((button_x, button_y))
 
-        # Pausar la música o efectos si se desea (opcional)
 
     def cambiar_turno(self):
         """Cambia al siguiente jugador"""
         # Guardar estado del jugador actual
         self.guardar_estado_jugador(self.jugador_actual)
         
-        # Cambiar al siguiente jugador (soporta N jugadores) y saltar jugadores inactivos
+        # Cambiar al siguiente jugador y saltar jugadores inactivos
         next_index = self.jugador_actual
         found = False
         try:
@@ -341,9 +350,17 @@ class Level:
         # Reiniciar únicamente el nivel: recrear enemigos y limpiar disparos/bonus
         # pero mantener puntos/vidas/bonus_teclas del jugador (ya cargados en self.jugador)
         try:
-            self.restart_level()
+            # Si este cambio de turno se produce tras una muerte, el flag
+            # `clear_bonuses_on_restart` habrá sido seteado por el popup.
+            self.restart_level(clear_active_bonuses=getattr(self, 'clear_bonuses_on_restart', False))
         except Exception:
             pass
+        finally:
+            # Siempre limpiar el flag después del reinicio
+            try:
+                self.clear_bonuses_on_restart = False
+            except Exception:
+                pass
         # Actualizar current_player en el StateManager si tenemos mapeo de usernames
         try:
             if hasattr(self, 'player_usernames'):
@@ -370,8 +387,9 @@ class Level:
         except Exception:
             pass
         try:
-            # Reiniciar el nivel para que el mismo jugador continúe
-            self.restart_level()
+            # Reiniciar el nivel para que el mismo jugador continúe.
+            # Limpiar bonuses activos porque venimos de una pérdida de vida.
+            self.restart_level(clear_active_bonuses=True)
         except Exception:
             pass
         # Reposicionar jugador actual
@@ -502,6 +520,14 @@ class Level:
 
     def show_level_cleared_popup(self):
         """Muestra popup cuando se completó el nivel (todos los enemigos muertos)"""
+        # Evitar mostrar popup de nivel completado si justo suprimimos popups
+        # (por ejemplo, un enemigo fue destruido por el escudo recientemente).
+        if getattr(self, 'suppress_popup', False):
+            try:
+                self.suppress_popup = False
+            except Exception:
+                pass
+            return
         self.popup_type = 'level_cleared'
         self.popup_active = True
         self.game_paused = True
@@ -647,6 +673,13 @@ class Level:
         self.enemigos.clear()
         self.crear_formacion_enemigos()
 
+        # Asegurar que no queden disparos en pantalla al comenzar el nuevo nivel
+        try:
+            self.disparos_enemigos.clear()
+            self.disparos.clear()
+        except Exception:
+            pass
+
         # Cerrar popup y reanudar
         self.popup_active = False
         self.game_paused = False
@@ -742,15 +775,43 @@ class Level:
                 else:
                     self.enemigos.append(Enemigo(x, y, self.manager.screen))
 
-    def restart_level(self):
+    def restart_level(self, clear_active_bonuses: bool = False):
         """Reinicia el estado del nivel actual (enemigos, disparos y bonus)
-        Mantiene los atributos del jugador (puntos, vidas, bonus_teclas)."""
+        Mantiene los atributos del jugador (puntos, vidas, bonus_teclas).
+
+        """
         # Recrear enemigos a su formación inicial
         self.enemigos.clear()
         self.crear_formacion_enemigos()
 
         # Limpiar disparos en pantalla
         self.disparos.clear()
+        # Limpiar también los disparos de enemigos para evitar que queden balas
+        # del intento anterior cuando se reinicia por pérdida de vida / cambio de turno.
+        try:
+            self.disparos_enemigos.clear()
+        except Exception:
+            pass
+
+        # Si se solicita, desactivar los bonuses activos del jugador (no las
+        # disponibilidades), por ejemplo: doble_puntos, escudo y tipo_disparo activo.
+        if clear_active_bonuses:
+            try:
+                # Doble puntos
+                if getattr(self.jugador, 'doble_puntos', False):
+                    self.jugador.doble_puntos = False
+                    self.jugador.doble_puntos_fin = 0
+                # Escudo
+                if getattr(self.jugador, 'escudo', 0) > 0:
+                    self.jugador.escudo = 0
+                # Tipo de disparo activo (area / rastreador) -> volver a normal
+                try:
+                    if getattr(self.jugador, 'tipo_disparo', None) in ('area', 'rastreador'):
+                        self.jugador.tipo_disparo = 'normal'
+                except Exception:
+                    pass
+            except Exception:
+                pass
 
         # Reiniciar bonus en escenario
         self.bonus_actual = None
@@ -1034,13 +1095,13 @@ class Level:
                     # Crear el disparo en la posición calculada o usar el método del enemigo como fallback
                     if spawn_x is not None and spawn_y is not None:
                         try:
-                            disparo = DisparoEnemigo(spawn_x, spawn_y, tipo=tipo_disparo)
+                            disparo = DisparoEnemigo(spawn_x, spawn_y, tipo=tipo_disparo, nivel=self.nivel)
                         except Exception:
                             disparo = None
 
                     if disparo is None and hasattr(enemigo, "disparar"):
                         try:
-                            disparo = enemigo.disparar(tipo_disparo)
+                            disparo = enemigo.disparar(tipo_disparo, nivel=self.nivel)
                         except Exception:
                             disparo = None
 
@@ -1163,13 +1224,10 @@ class Level:
         # === COLISIÓN JUGADOR-ENEMIGO (MODIFICADO) ===
         for enemigo in self.enemigos:
             if enemigo.vivo and enemigo.colisiona_con_jugador(self.jugador):
-                self.jugador.recibir_daño()
-                if(self.joystick is not None):
-                    self.joystick.rumble(0.7, 0.7, 500)  # vibración por 500ms
-                SoundManager.play("enemigo_muere")
-                #  Destruir AMBAS naves: marcar enemigo muerto y crear
-                #  animaciones de explosión para ENEMIGO y JUGADOR.
+                # El enemigo siempre muere en la colisión
                 enemigo.vivo = False
+                SoundManager.play("enemigo_muere")
+
                 # explosión para el enemigo (pequeña)
                 self.explosiones.append({
                     "x": enemigo.x,
@@ -1179,6 +1237,36 @@ class Level:
                     "kind": "enemy",
                     "base_radius": 20
                 })
+
+                # Si el jugador tiene escudo activo -> consumir UNA capa y NO morir
+                try:
+                    if getattr(self.jugador, 'tiene_escudo', False):
+                        try:
+                            # Reducir solo una capa de escudo
+                            self.jugador.reducir_capas_escudo(1)
+                        except Exception:
+                            # Fallback directo
+                            try:
+                                self.jugador.escudo = max(0, getattr(self.jugador, 'escudo', 0) - 1)
+                            except Exception:
+                                pass
+                        # Marcar que este enemigo fue destruido por el escudo para
+                        # que no cuente como muerte que avance de nivel.
+                        try:
+                            enemigo.killed_by_shield = True
+                        except Exception:
+                            pass
+                        # Suprimir cualquier popup inmediato (p. ej. pérdida de vida o level cleared)
+                        try:
+                            self.suppress_popup = True
+                        except Exception:
+                            pass
+                        # No crear explosión del jugador ni restar vidas
+                        break
+                except Exception:
+                    pass
+
+                # Si NO tiene escudo -> ambos mueren (comportamiento anterior)
                 # explosión para el jugador (más grande, más roja)
                 self.explosiones.append({
                     "x": self.jugador.x + getattr(self.jugador, 'tamaño', 32) // 2,
@@ -1188,11 +1276,25 @@ class Level:
                     "kind": "player",
                     "base_radius": 40
                 })
+
+                # Vibración del joystick si aplica
+                if(self.joystick is not None):
+                    try:
+                        self.joystick.rumble(0.7, 0.7, 500)  # vibración por 500ms
+                    except Exception:
+                        pass
+
                 SoundManager.play("enemigo_muere")
 
                 # El jugador recibe daño (pierde una vida)
-                self.jugador.recibir_daño()
-                
+                try:
+                    self.jugador.recibir_daño()
+                except Exception:
+                    try:
+                        self.jugador.vida = max(0, getattr(self.jugador, 'vida', 0) - 1)
+                    except Exception:
+                        pass
+
                 # Si el jugador aún tiene vidas, mostrar popup
                 if self.jugador.vida > 0:
                     self.show_player_lost_popup()
@@ -1212,7 +1314,7 @@ class Level:
                         self.show_game_over_popup()
                     else:
                         self.show_player_lost_popup()
-                
+
                 break  # Solo una colisión por frame
 
         # BONUS

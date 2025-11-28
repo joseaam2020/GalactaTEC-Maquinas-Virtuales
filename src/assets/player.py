@@ -159,10 +159,22 @@ class Jugador:
 
         if self.escudo > 0:
             # --- Daño al escudo ---
-            capas_perdidas = 2 if tipo_disparo == "cargado" else 1
-            self.escudo -= capas_perdidas
-            if self.escudo < 0:
-                self.escudo = 0
+            if tipo_disparo == "cargado":
+                # Disparo cargado intenta consumir 2 capas.
+                if self.escudo >= 2:
+                    self.escudo -= 2
+                else:
+                    # Si solo queda 1 capa, se consume y además el jugador pierde una vida
+                    self.escudo = 0
+                    # Perder una vida adicional por penetración
+                    self.vida -= 1
+                    # Resetear daño acumulado al recibir vida directa
+                    self.daño_acumulado = 0
+            else:
+                # Disparo básico consume 1 capa sin causar vida
+                self.escudo -= 1
+                if self.escudo < 0:
+                    self.escudo = 0
 
         else:
             # --- Daño sin escudo ---

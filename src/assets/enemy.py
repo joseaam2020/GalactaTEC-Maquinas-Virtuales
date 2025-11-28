@@ -62,7 +62,7 @@ class Enemigo:
             (self.tamaño <= self.y <= self.ALTO - self.tamaño)
         )
 
-    def disparar(self, tipo):
+    def disparar(self, tipo, nivel=None):
         if not self.vivo:
             return None
 
@@ -75,8 +75,9 @@ class Enemigo:
         # Posición inicial del disparo (centro inferior del enemigo)
         x = self.x + self.tamaño // 2
         y = self.y + self.tamaño
-        SoundManager.play("enemigo_disparo")
-        return DisparoEnemigo(x, y, tipo)
+        # El sonido del disparo lo maneja `DisparoEnemigo` para permitir
+        # variaciones por nivel (evitar duplicar la reproducción aquí).
+        return DisparoEnemigo(x, y, tipo, nivel=nivel)
 
  
     def mover(self, dx, dy):

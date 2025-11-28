@@ -82,25 +82,57 @@ class StateManager:
         #Crear un nuevo Level1 SIEMPRE
         from screens.start_playthrough import Level1
         level = Level1(self)
+        # Registrar mapping de usernames para que `Level` reconozca jugadores activos
+        try:
+            level.player_usernames = {1: first_player}
+            if second_player:
+                level.player_usernames[2] = second_player
+            # Asegurar que Level sepa cuántos jugadores hay
+            level.total_jugadores = 1 if not second_player else 2
+            # Establecer current_player en el manager
+            self.current_player = first_player
+        except Exception:
+            pass
 
-        # Cambiar imagen de la nave
-        level.jugador.cambiar_imagen(player_1_info["ship_image"])
-
-        # User Info
-        level.user_1_info.update_info(first_player, player_1_info["photo_path"], 0)
-
+        # Actualizar imagen y user info (mantener compatibilidad)
+        try:
+            level.jugador.cambiar_imagen(player_1_info.get("ship_image"))
+        except Exception:
+            pass
+        try:
+            level.user_1_info.update_info(first_player, player_1_info.get("photo_path"), 0)
+        except Exception:
+            pass
         if second_player:
-            level.user_2_info.update_info(second_player, player_2_info["photo_path"], 0)
+            try:
+                level.user_2_info.update_info(second_player, player_2_info.get("photo_path"), 0)
+            except Exception:
+                pass
         else:
             level.user_2_info = None
 
-        # Patrón enemigo
-        level.tipo_patron = self.patterns[first_player][1]
+        # Intentar aplicar patrones y música según preferencias del usuario
+        try:
+            if first_player in self.patterns:
+                level.tipo_patron = self.patterns.get(first_player, {}).get(1, level.tipo_patron)
+        except Exception:
+            pass
+        try:
+            SoundManager.cargar_musica("", player_1_info.get('music_pref'))
+        except Exception:
+            pass
 
-        # Música
-        SoundManager.cargar_musica("", player_1_info['music_pref'])
+        # Informar al Level que aplique mapping y actualice widgets/música
+        try:
+            if hasattr(level, 'apply_player_usernames'):
+                level.apply_player_usernames()
+        except Exception:
+            try:
+                level.update_userinfo_names()
+            except Exception:
+                pass
 
-        #Cambiar estado a este nuevo nivel
+        # Cambiar estado a este nuevo nivel
         self.current_state = level
 
 if __name__ == "__main__":
