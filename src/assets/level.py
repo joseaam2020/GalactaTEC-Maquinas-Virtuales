@@ -126,6 +126,8 @@ class Level:
         self.vel_y = 20
 
         self.game_over = False
+        # Flag para suprimir un popup inmediatamente después de ciertos eventos (p.ej. escudo absorbe impacto)
+        self.suppress_popup = False
 
         # Cargar íconos de bonus para HUD
         self.iconos_bonus = {}
@@ -258,6 +260,13 @@ class Level:
 
     def show_player_lost_popup(self):
         """Muestra el popup cuando el jugador pierde una vida"""
+        # Si se marcó suprimir popup (p. ej. impacto absorbido por escudo), no mostrarlo
+        if getattr(self, 'suppress_popup', False):
+            try:
+                self.suppress_popup = False
+            except Exception:
+                pass
+            return
         self.popup_type = 'lost'
         self.popup_active = True
         self.game_paused = True
@@ -501,6 +510,14 @@ class Level:
 
     def show_level_cleared_popup(self):
         """Muestra popup cuando se completó el nivel (todos los enemigos muertos)"""
+        # Evitar mostrar popup de nivel completado si justo suprimimos popups
+        # (por ejemplo, un enemigo fue destruido por el escudo recientemente).
+        if getattr(self, 'suppress_popup', False):
+            try:
+                self.suppress_popup = False
+            except Exception:
+                pass
+            return
         self.popup_type = 'level_cleared'
         self.popup_active = True
         self.game_paused = True
@@ -1160,13 +1177,10 @@ class Level:
         # === COLISIÓN JUGADOR-ENEMIGO (MODIFICADO) ===
         for enemigo in self.enemigos:
             if enemigo.vivo and enemigo.colisiona_con_jugador(self.jugador):
-                self.jugador.recibir_daño()
-                if(self.joystick is not None):
-                    self.joystick.rumble(0.7, 0.7, 500)  # vibración por 500ms
-                SoundManager.play("enemigo_muere")
-                #  Destruir AMBAS naves: marcar enemigo muerto y crear
-                #  animaciones de explosión para ENEMIGO y JUGADOR.
+                # El enemigo siempre muere en la colisión
                 enemigo.vivo = False
+                SoundManager.play("enemigo_muere")
+
                 # explosión para el enemigo (pequeña)
                 self.explosiones.append({
                     "x": enemigo.x,
@@ -1176,6 +1190,36 @@ class Level:
                     "kind": "enemy",
                     "base_radius": 20
                 })
+
+                # Si el jugador tiene escudo activo -> consumir UNA capa y NO morir
+                try:
+                    if getattr(self.jugador, 'tiene_escudo', False):
+                        try:
+                            # Reducir solo una capa de escudo
+                            self.jugador.reducir_capas_escudo(1)
+                        except Exception:
+                            # Fallback directo
+                            try:
+                                self.jugador.escudo = max(0, getattr(self.jugador, 'escudo', 0) - 1)
+                            except Exception:
+                                pass
+                        # Marcar que este enemigo fue destruido por el escudo para
+                        # que no cuente como muerte que avance de nivel.
+                        try:
+                            enemigo.killed_by_shield = True
+                        except Exception:
+                            pass
+                        # Suprimir cualquier popup inmediato (p. ej. pérdida de vida o level cleared)
+                        try:
+                            self.suppress_popup = True
+                        except Exception:
+                            pass
+                        # No crear explosión del jugador ni restar vidas
+                        break
+                except Exception:
+                    pass
+
+                # Si NO tiene escudo -> ambos mueren (comportamiento anterior)
                 # explosión para el jugador (más grande, más roja)
                 self.explosiones.append({
                     "x": self.jugador.x + getattr(self.jugador, 'tamaño', 32) // 2,
@@ -1185,11 +1229,25 @@ class Level:
                     "kind": "player",
                     "base_radius": 40
                 })
+
+                # Vibración del joystick si aplica
+                if(self.joystick is not None):
+                    try:
+                        self.joystick.rumble(0.7, 0.7, 500)  # vibración por 500ms
+                    except Exception:
+                        pass
+
                 SoundManager.play("enemigo_muere")
 
                 # El jugador recibe daño (pierde una vida)
-                self.jugador.recibir_daño()
-                
+                try:
+                    self.jugador.recibir_daño()
+                except Exception:
+                    try:
+                        self.jugador.vida = max(0, getattr(self.jugador, 'vida', 0) - 1)
+                    except Exception:
+                        pass
+
                 # Si el jugador aún tiene vidas, mostrar popup
                 if self.jugador.vida > 0:
                     self.show_player_lost_popup()
@@ -1209,7 +1267,7 @@ class Level:
                         self.show_game_over_popup()
                     else:
                         self.show_player_lost_popup()
-                
+
                 break  # Solo una colisión por frame
 
         # BONUS
