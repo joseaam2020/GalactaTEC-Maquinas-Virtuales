@@ -1288,6 +1288,7 @@ class Level:
 
                 # El jugador recibe daño (pierde una vida)
                 try:
+                    self.jugador.puntos += 200 * (2 if self.jugador.doble_puntos else 1)
                     self.jugador.recibir_daño()
                 except Exception:
                     try:
