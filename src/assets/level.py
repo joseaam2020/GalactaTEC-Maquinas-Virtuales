@@ -150,6 +150,7 @@ class Level:
 
         # Detectar Control
         self.joystick = None
+        self.bonus_num = 0
         if pygame.joystick.get_count() == 0:
             print("No se detectó ningún control. Se utilizan flechas de teclado")
         else:
@@ -157,7 +158,6 @@ class Level:
             self.joystick = pygame.joystick.Joystick(0)
             self.joystick.init()
             print(f"Control detectado: {self.joystick.get_name()}")
-            self.bonus_num = 0
             self.tiempo_ultimo_disparo = 0
             self.tiempo_ultimo_boton = 0
             self.cooldown_disparo = 100  # milisegundos
@@ -822,6 +822,7 @@ class Level:
                         self.jugador.disparar(self.disparos)
                     if pygame.K_1 <= evento.key <= pygame.K_5:
                         self.jugador.usar_bonus(evento.key - pygame.K_1 + 1)
+                        self.bonus_num = evento.key - pygame.K_1 + 1
 
                 if evento.key == pygame.K_j:
                     volumen_actual = pygame.mixer.music.get_volume()
