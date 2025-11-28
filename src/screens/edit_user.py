@@ -401,7 +401,32 @@ class EditUser:
             if not music.lower().endswith(".mp3"):
                 self.show_error("El archivo de música no es .mp3")
                 return
-            cambios["music_pref"] = music
+
+            # Rutas de destino
+            audio_dest_dir = "./resources/audio/"
+
+            # Asegurarse de que las carpetas existen
+            os.makedirs(audio_dest_dir, exist_ok=True)
+
+            # Obtener solo el nombre del archivo
+            music_filename = os.path.basename(self.selected_music)
+
+            # Rutas completas de destino
+            music_dest = os.path.join(audio_dest_dir, music_filename)
+
+            # Copiar archivos (sobrescribe si ya existe)
+            try:
+                src_music = os.path.abspath(self.selected_music)
+                dst_music = os.path.abspath(music_dest)
+                if src_music != dst_music:
+                    shutil.copy2(src_music, dst_music)
+                else:
+                    # Ya es el mismo archivo: no copiar
+                    print(f"Music file already in destination: {dst_music}")
+            except Exception as e:
+                print(f"Error copying music file: {e}")
+
+            cambios["music_pref"] = music_dest
         if ship != orig_ship:
             if not os.path.isfile(ship):
                 self.show_error("Archivo de nave no encontrado")
@@ -417,7 +442,31 @@ class EditUser:
             if not photo.lower().endswith((".jpg", ".png")):
                 self.show_error("El archivo de foto no es .jpg o .png")
                 return
-            cambios["photo_path"] = photo
+
+            # Rutas de destino
+            img_dest_dir = "./resources/imgs/"
+
+            # Asegurarse de que las carpetas existen
+            os.makedirs(img_dest_dir, exist_ok=True)
+
+            # Obtener solo el nombre del archivo
+            photo_filename = os.path.basename(self.selected_profile_pic)
+
+            # Rutas completas de destino
+            photo_dest = os.path.join(img_dest_dir, photo_filename)
+
+            # Copiar archivos (sobrescribe si ya existe)
+            try:
+                src_photo = os.path.abspath(self.selected_profile_pic)
+                dst_photo = os.path.abspath(photo_dest)
+                if src_photo != dst_photo:
+                    shutil.copy2(src_photo, dst_photo)
+                else:
+                    print(f"Photo file already in destination: {dst_photo}")
+            except Exception as e:
+                print(f"Error copying photo file: {e}")
+
+            cambios["photo_path"] = photo_dest
 
         if email in cambios:
             if email_exists(email=email, db_path="./src/register/GalactaDB.db"):

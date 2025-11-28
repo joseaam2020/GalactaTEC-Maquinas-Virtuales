@@ -17,8 +17,8 @@ class Level1(Level):
         self.vel_y = 15
         self.puntos_para_siguiente_nivel = 100  # Requiere menos puntos
 
-        # Cambiar formación inicial de enemigos
-        self.filas = 4
+        # Cambiar formación inicial de enemigos (8 filas)
+        self.filas = 8
         self.crear_formacion_enemigos()
 
         # Mostrar un tutorial o mensaje introductorio si quieres

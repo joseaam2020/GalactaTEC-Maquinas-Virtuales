@@ -2,7 +2,7 @@ import pygame
 import time
 from assets.proyectile import Disparo
 from assets.colors import Colors
-from assets.sound_manager import SoundManager
+from assets.sound_manager import SoundManager 
 
 class Jugador:
     def __init__(self,screen):
@@ -25,13 +25,14 @@ class Jugador:
         self.ultimo_sonido_mov = 0
         self.estela = []  # lista de posiciones para la estela
         self.estela_max = 15  # máximo de "partículas" visibles
+        self.daño_acumulado = 0
 
         # Image por defecto
         try:
             self.imagen_original = pygame.image.load("./resources/imgs/player_ship_1.png").convert_alpha()
             self.imagen = pygame.transform.scale(self.imagen_original, (self.tamaño, self.tamaño))
         except FileNotFoundError:
-            print("⚠️ No se encontró 'assets/player.png'. Se usará el rectángulo por defecto.")
+            print("No se encontró 'assets/player.png'. Se usará el rectángulo por defecto.")
             self.imagen = None
 
     def mover(self, teclas):
@@ -148,14 +149,75 @@ class Jugador:
             self.vida -= 1
         self.invulnerable_hasta = time.time() + 1
 
+    def recibir_impacto_disparo(self, tipo_disparo):
+        if time.time() < self.invulnerable_hasta:
+            return  # aún invulnerable, no recibe daño
+
+    def recibir_impacto_disparo(self, tipo_disparo):
+        if time.time() < self.invulnerable_hasta:
+            return  # aún invulnerable, no recibe daño
+
+        if self.escudo > 0:
+            # --- Daño al escudo ---
+            if tipo_disparo == "cargado":
+                # Disparo cargado intenta consumir 2 capas.
+                if self.escudo >= 2:
+                    self.escudo -= 2
+                else:
+                    # Si solo queda 1 capa, se consume y además el jugador pierde una vida
+                    self.escudo = 0
+                    # Perder una vida adicional por penetración
+                    self.vida -= 1
+                    # Resetear daño acumulado al recibir vida directa
+                    self.daño_acumulado = 0
+            else:
+                # Disparo básico consume 1 capa sin causar vida
+                self.escudo -= 1
+                if self.escudo < 0:
+                    self.escudo = 0
+
+        else:
+            # --- Daño sin escudo ---
+            if tipo_disparo == "basico":
+                self.daño_acumulado += 1
+                if self.daño_acumulado >= 2:
+                    self.vida -= 1
+                    self.daño_acumulado = 0
+
+            elif tipo_disparo == "cargado":
+                self.vida -= 1
+                self.daño_acumulado = 0
+
+        # Pequeña invulnerabilidad tras impacto
+        self.invulnerable_hasta = time.time() + 0.3
+
+    def reducir_capas_escudo(self, capas):
+        if self.escudo > 0:
+            self.escudo -= capas
+            if self.escudo < 0:
+                self.escudo = 0
+
     def aplicar_bonus(self, tipo):
-        if tipo == "vida" and self.vida < 5:
-            self.vida += 1
-        elif tipo == "doble_puntos":
+        if tipo == "doble_puntos":
             self.doble_puntos = True
             self.doble_puntos_fin = time.time() + 15
         elif tipo == "escudo":
             self.escudo = 3
+        elif tipo == "vida":
+            # Incrementar vidas en 1 al usar el bonus de vida
+            try:
+                # No forzamos un tope aquí; se puede añadir un cap si se desea
+                self.vida = int(self.vida) + 1
+            except Exception:
+                try:
+                    self.vida += 1
+                except Exception:
+                    pass
+            # Reproducir sonido de bonus si existe
+            try:
+                SoundManager.play("bonus")
+            except Exception:
+                pass
 
     def actualizar_bonus(self):
         if self.doble_puntos and time.time() > self.doble_puntos_fin:
@@ -200,3 +262,8 @@ class Jugador:
             print(f"Imagen del jugador actualizada: {ruta_imagen}")
         except Exception as e:
             print(f"Error al cargar la imagen {ruta_imagen}: {e}")
+            
+    @property
+    def tiene_escudo(self):
+        """Permite consultar si el jugador tiene escudo activo."""
+        return self.escudo > 0
