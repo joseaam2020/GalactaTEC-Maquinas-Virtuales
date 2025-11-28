@@ -41,7 +41,7 @@ class HallOfFame:
             self.users.append(UserInfo(self.font_user, (0, 0), (120, 120)))
 
         # Botón de salida
-        self.exit_button = Button("Return", (0, 0), pygame.font.Font(None, 50), on_click=self.game.change_state, args="OPTIONS")
+        self.exit_button = Button("Return", (0, 0), pygame.font.Font(None, 50), on_click=self.return_to_options)
 
         # Boton de ayuda
         help_text = (
@@ -183,6 +183,14 @@ class HallOfFame:
                 s.fill((30,30,30, 210))
                 screen.blit(s, (bg_rect.x-15, bg_rect.y-5))
                 screen.blit(surf, bg_rect)
+
+    def return_to_options(self):
+        """Reinicia Level1 y vuelve a OPTIONS."""
+        try:
+            self.game.restart_level()
+        except Exception:
+            pass
+        self.game.change_state("OPTIONS")
 
     def set_new_scores(self,new_scores):
         for new_player in new_scores:

@@ -82,6 +82,8 @@ class StateManager:
         #Crear un nuevo Level1 SIEMPRE
         from screens.start_playthrough import Level1
         level = Level1(self)
+        # Actualizar la instancia en states
+        self.states["LEVEL_1"] = level
         # Registrar mapping de usernames para que `Level` reconozca jugadores activos
         try:
             level.player_usernames = {1: first_player}
@@ -134,6 +136,11 @@ class StateManager:
 
         # Cambiar estado a este nuevo nivel
         self.current_state = level
+
+    def restart_level(self):
+        """Reinicia Level1 con todos los jugadores en 0 puntos y vuelve a OPTIONS."""
+        self.start_playthrough()
+        self.change_state("OPTIONS")
 
 if __name__ == "__main__":
     game = StateManager()

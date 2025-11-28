@@ -134,13 +134,13 @@ class EndGameScreen:
 
     def restart(self):
         try:
-            # Parar cualquier música/fanfarria antes de reiniciar la playthrough
+            # Parar cualquier música/fanfarria antes de reiniciar
             try:
                 pygame.mixer.music.stop()
             except Exception:
                 pass
-            # Reutiliza el manager para iniciar playthrough si existe (usa la lógica de logged_users)
-            self.manager.start_playthrough()
+            # Reiniciar una nueva instancia de Level1
+            self.manager.restart_level()
         except Exception:
             # Fallback: cambiar a MAIN
             try:
