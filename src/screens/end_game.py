@@ -116,11 +116,24 @@ class EndGameScreen:
     #       ACCIONES DE BOTONES
     # ===================================================================
     def go_menu(self):
+        try:
+            # Detener la música al volver al menú
+            try:
+                pygame.mixer.music.stop()
+            except Exception:
+                pass
+        except Exception:
+            pass
         self.manager.change_state("OPTIONS")
 
     def restart(self):
         try:
-            # Reutiliza el manager para iniciar playthrough si existe
+            # Parar cualquier música/fanfarria antes de reiniciar la playthrough
+            try:
+                pygame.mixer.music.stop()
+            except Exception:
+                pass
+            # Reutiliza el manager para iniciar playthrough si existe (usa la lógica de logged_users)
             self.manager.start_playthrough()
         except Exception:
             # Fallback: cambiar a MAIN

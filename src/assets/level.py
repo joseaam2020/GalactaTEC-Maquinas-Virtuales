@@ -779,9 +779,7 @@ class Level:
     def restart_level(self, clear_active_bonuses: bool = False):
         """Reinicia el estado del nivel actual (enemigos, disparos y bonus)
         Mantiene los atributos del jugador (puntos, vidas, bonus_teclas).
-
-        If `clear_active_bonuses` is True, deactivate any currently active
-        bonuses on the active `Jugador` (useful after losing a life).
+        
         """
         # Recrear enemigos a su formación inicial
         self.enemigos.clear()
