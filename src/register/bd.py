@@ -232,7 +232,10 @@ def show_all_players():
 # ----------------------------------------------------------
 # 🔹 Guardar un puntaje
 # ----------------------------------------------------------
-def add_score(username, score):
+def add_score(username, score,db_path):
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
     try:
         # Obtener el id del jugador por su username
         cursor.execute("SELECT id FROM players WHERE username = ?", (username,))
