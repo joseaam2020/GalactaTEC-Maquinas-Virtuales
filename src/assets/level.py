@@ -161,6 +161,7 @@ class Level:
             self.tiempo_ultimo_disparo = 0
             self.tiempo_ultimo_boton = 0
             self.cooldown_disparo = 100  # milisegundos
+            self.cooldown_boton = 700
 
 
         # Informacion jugadores
@@ -844,7 +845,7 @@ class Level:
         else:
             tiempo_actual = pygame.time.get_ticks()
 
-            if self.joystick.get_button(9) and (tiempo_actual - self.tiempo_ultimo_boton > self.cooldown_disparo): # L1
+            if self.joystick.get_button(9) and (tiempo_actual - self.tiempo_ultimo_boton > self.cooldown_boton): # L1
                 self.pausado = not self.pausado
                 self.tiempo_ultimo_boton = tiempo_actual
 
@@ -902,17 +903,18 @@ class Level:
                 idx = bonus_activos.index(self.bonus_num)
 
                 # Navegar entre bonus activos
-                if self.joystick.get_button(4) and (tiempo_actual - self.tiempo_ultimo_boton > self.cooldown_disparo): # L1
+                if self.joystick.get_button(4) and (tiempo_actual - self.tiempo_ultimo_boton > self.cooldown_boton): # L1
                     idx = (idx - 1) % len(bonus_activos)  # circular
                     self.bonus_num = bonus_activos[idx]
                     self.tiempo_ultimo_boton = tiempo_actual
 
-                if self.joystick.get_button(5) and (tiempo_actual - self.tiempo_ultimo_boton > self.cooldown_disparo): # R1
+                if self.joystick.get_button(5) and (tiempo_actual - self.tiempo_ultimo_boton > self.cooldown_boton): # R1
                     idx = (idx + 1) % len(bonus_activos)  # circular
                     self.bonus_num = bonus_activos[idx]
                     self.tiempo_ultimo_boton = tiempo_actual
 
-            if self.joystick.get_button(1) and self.bonus_num > 0:
+            # Usar bonus seleccionado
+            if self.joystick.get_button(1) and self.bonus_num > 0 and tiempo_actual - self.tiempo_ultimo_boton > self.cooldown_boton:
                 self.jugador.usar_bonus(self.bonus_num)
 
 
@@ -1362,33 +1364,37 @@ class Level:
                 y_icono = base_y
                 surface.blit(icono_final, (x_icono, y_icono))
 
-                # Marco para los activos (con brillo animado)
-                if self.joystick is not None:
-                    if activo and i == self.bonus_num:
-                                pygame.draw.rect(
-                                    surface,
-                                    color_brillo,               # azul animado
-                                    (x_icono - 2, y_icono - 2, 44, 44),
-                                    2,
-                                    border_radius=5
-                                )
-                    elif activo: 
+                # Solo el bonus seleccionado (bonus_num) tiene el marco animado y grueso
+                if activo and i == self.bonus_num:
+                    # Glow exterior
+                    for grow in range(4, 0, -2):
+                        alpha = int(30 * (grow / 8))
+                        glow_color = (color_brillo[0], color_brillo[1], color_brillo[2], alpha)
+                        glow_surf = pygame.Surface((44+grow*2, 44+grow*2), pygame.SRCALPHA)
                         pygame.draw.rect(
-                            surface,
-                            (200, 200, 255),            # un azul claro estático
-                            (x_icono - 2, y_icono - 2, 44, 44),
-                            2,
-                            border_radius=5
+                            glow_surf,
+                            glow_color,
+                            (0, 0, 44+grow*2, 44+grow*2),
+                            border_radius=8
                         )
-                else:
-                    if activo:
-                        pygame.draw.rect(
-                            surface,
-                            color_brillo,
-                            (x_icono - 2, y_icono - 2, 44, 44),
-                            2,
-                            border_radius=5
-                        )
+                        surface.blit(glow_surf, (x_icono-2-grow, y_icono-2-grow), special_flags=pygame.BLEND_RGBA_ADD)
+                    # Marco principal grueso
+                    pygame.draw.rect(
+                        surface,
+                        color_brillo,
+                        (x_icono - 2, y_icono - 2, 44, 44),
+                        3,
+                        border_radius=7
+                    )
+                elif activo:
+                    # Los demás activos solo marco azul claro estático
+                    pygame.draw.rect(
+                        surface,
+                        (200, 200, 255),
+                        (x_icono - 2, y_icono - 2, 44, 44),
+                        2,
+                        border_radius=5
+                    )
             else:
                 # Mostrar número si no hay icono
                 txt = self.fuente.render(str(i), True, Colors.BLANCO)
