@@ -2,7 +2,7 @@ import pygame
 from widgets import button
 from widgets.button import Button
 from widgets.userinfo import UserInfo
-from register.bd import get_top_6_scores
+from register.bd import get_top_6_scores, add_score
 from widgets.helpbutton import HelpButton
 
 class HallOfFame:
@@ -11,6 +11,10 @@ class HallOfFame:
         self.font_title = pygame.font.Font(None, 80)
         self.font_user = pygame.font.Font(None, 16)
 
+        # Para mensajes pop-up de nuevos puntajes
+        self.popup_messages = []  # lista de (mensaje, tiempo_expiracion_ms)
+        self.popup_duration = 2500  # ms que dura cada pop-up
+
         # Fondo
         self.background = pygame.image.load("./resources/imgs/options_background.jpg").convert()
 
@@ -18,22 +22,22 @@ class HallOfFame:
         self.title_text = self.font_title.render("Hall of Fame", True, (255, 215, 0))
         self.title_rect = self.title_text.get_rect()
 
-        scores = get_top_6_scores("./src/register/GalactaDB.db")
+        self.scores = get_top_6_scores("./src/register/GalactaDB.db")
 
         # Widgets de usuarios (5 en total)
         self.users = []
-        for player in scores:
+        for player in self.scores:
             self.users.append(
                     UserInfo(
                         font=self.font_user,
                         pos=(0,0),
                         size=(120,120),
                         name=player,
-                        photo=(scores[player]['img_path']),
-                        score=scores[player]['score']
+                        photo=(self.scores[player]['img_path']),
+                        score=self.scores[player]['score']
                         ))
 
-        for _ in range(6 - len(scores)):
+        for _ in range(6 - len(self.scores)):
             self.users.append(UserInfo(self.font_user, (0, 0), (120, 120)))
 
         # Botón de salida
@@ -142,7 +146,9 @@ class HallOfFame:
          
 
     def update(self, dt):
-        pass
+        # Limpiar mensajes pop-up expirados
+        ahora = pygame.time.get_ticks()
+        self.popup_messages = [ (msg, t_exp) for (msg, t_exp) in self.popup_messages if t_exp > ahora ]
 
     def draw(self, screen):
         # Fondo escalado
@@ -164,3 +170,57 @@ class HallOfFame:
 
         # Dibujar boton de ayuda
         self.help_button.draw(screen)
+
+        # Dibujar pop-ups de nuevos puntajes en la esquina superior izquierda
+        if self.popup_messages:
+            font_popup = pygame.font.Font(None, 24)
+            x0, y0 = 20, 20  # margen desde la esquina
+            for i, (msg, _) in enumerate(self.popup_messages):
+                surf = font_popup.render(msg, True, (255,255,255))
+                bg_rect = surf.get_rect(topleft=(x0, y0 + i*50))
+                # Fondo semitransparente
+                s = pygame.Surface((bg_rect.width+30, bg_rect.height+10), pygame.SRCALPHA)
+                s.fill((30,30,30, 210))
+                screen.blit(s, (bg_rect.x-15, bg_rect.y-5))
+                screen.blit(surf, bg_rect)
+
+    def set_new_scores(self,new_scores):
+        for new_player in new_scores:
+                try:
+                    add_score(new_player,new_scores[new_player]["score"],"./src/register/GalactaDB.db")
+                except Exception as e:
+                    print(f"Error registrando puntajes nuevos: {e}")
+
+    def update_scores(self):
+        """Actualiza los puntajes y los widgets de usuario con los 6 mejores puntajes actuales. Si hay cambios, muestra pop-ups."""
+        old_scores = self.scores.copy() if hasattr(self, 'scores') else {}
+        new_scores = get_top_6_scores("./src/register/GalactaDB.db")
+        mensajes = []
+        # Comparar scores antiguos y nuevos
+        for player in new_scores:
+            nuevo = new_scores[player]['score']
+            anterior = old_scores.get(player, {}).get('score', None)
+            if anterior is None or nuevo != anterior:
+                mensajes.append(f"¡Nuevo puntaje para {player}: {nuevo} pts!")
+        # Guardar mensajes con tiempo de expiración
+        ahora = pygame.time.get_ticks()
+        for m in mensajes:
+            self.popup_messages.append((m, ahora + self.popup_duration))
+        # Actualizar scores y widgets
+        self.scores = new_scores
+        self.users = []
+        for player in self.scores:
+            self.users.append(
+                UserInfo(
+                    font=self.font_user,
+                    pos=(0, 0),
+                    size=(120, 120),
+                    name=player,
+                    photo=(self.scores[player]['img_path']),
+                    score=self.scores[player]['score']
+                )
+            )
+        for _ in range(6 - len(self.scores)):
+            self.users.append(UserInfo(self.font_user, (0, 0), (120, 120)))
+
+

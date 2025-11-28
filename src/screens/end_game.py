@@ -24,11 +24,11 @@ class EndGameScreen:
 
         # Botones: Volver al menú y Reiniciar
         self.btn_menu = Button(
-            text="Volver al menú",
+            text="Salón de la fama",
             pos=(360, 600),
             font=self.font_button,
-            on_click=self.go_menu,
-            size=(220, 70)
+            on_click=self.go_hall,
+            size=(270, 70)
         )
         self.btn_restart = Button(
             text="Reiniciar",
@@ -115,16 +115,22 @@ class EndGameScreen:
     # ===================================================================
     #       ACCIONES DE BOTONES
     # ===================================================================
-    def go_menu(self):
+    def go_hall(self):
+        # Nuevos puntajes
+        new_scores = {}
+        for player in self.players:
+            new_scores[player["name"]] = {"score": player["score"]}
+        self.manager.states["HALL_FAME"].set_new_scores(new_scores)  
+        self.manager.states["HALL_FAME"].update_scores()  
+      
+        # Detener la música al volver al menú
         try:
-            # Detener la música al volver al menú
-            try:
-                pygame.mixer.music.stop()
-            except Exception:
-                pass
+            pygame.mixer.music.stop()
         except Exception:
             pass
-        self.manager.change_state("OPTIONS")
+
+        # Ir a salon de la fama
+        self.manager.change_state("HALL_FAME")
 
     def restart(self):
         try:
