@@ -128,6 +128,8 @@ class Level:
         self.game_over = False
         # Flag para suprimir un popup inmediatamente después de ciertos eventos (p.ej. escudo absorbe impacto)
         self.suppress_popup = False
+        # Flag para indicar que al reiniciar el nivel deben limpiarse los bonuses activos del jugador
+        self.clear_bonuses_on_restart = False
 
         # Cargar íconos de bonus para HUD
         self.iconos_bonus = {}
@@ -349,9 +351,17 @@ class Level:
         # Reiniciar únicamente el nivel: recrear enemigos y limpiar disparos/bonus
         # pero mantener puntos/vidas/bonus_teclas del jugador (ya cargados en self.jugador)
         try:
-            self.restart_level()
+            # Si este cambio de turno se produce tras una muerte, el flag
+            # `clear_bonuses_on_restart` habrá sido seteado por el popup.
+            self.restart_level(clear_active_bonuses=getattr(self, 'clear_bonuses_on_restart', False))
         except Exception:
             pass
+        finally:
+            # Siempre limpiar el flag después del reinicio
+            try:
+                self.clear_bonuses_on_restart = False
+            except Exception:
+                pass
         # Actualizar current_player en el StateManager si tenemos mapeo de usernames
         try:
             if hasattr(self, 'player_usernames'):
@@ -378,8 +388,9 @@ class Level:
         except Exception:
             pass
         try:
-            # Reiniciar el nivel para que el mismo jugador continúe
-            self.restart_level()
+            # Reiniciar el nivel para que el mismo jugador continúe.
+            # Limpiar bonuses activos porque venimos de una pérdida de vida.
+            self.restart_level(clear_active_bonuses=True)
         except Exception:
             pass
         # Reposicionar jugador actual
@@ -663,6 +674,13 @@ class Level:
         self.enemigos.clear()
         self.crear_formacion_enemigos()
 
+        # Asegurar que no queden disparos en pantalla al comenzar el nuevo nivel
+        try:
+            self.disparos_enemigos.clear()
+            self.disparos.clear()
+        except Exception:
+            pass
+
         # Cerrar popup y reanudar
         self.popup_active = False
         self.game_paused = False
@@ -758,15 +776,45 @@ class Level:
                 else:
                     self.enemigos.append(Enemigo(x, y, self.manager.screen))
 
-    def restart_level(self):
+    def restart_level(self, clear_active_bonuses: bool = False):
         """Reinicia el estado del nivel actual (enemigos, disparos y bonus)
-        Mantiene los atributos del jugador (puntos, vidas, bonus_teclas)."""
+        Mantiene los atributos del jugador (puntos, vidas, bonus_teclas).
+
+        If `clear_active_bonuses` is True, deactivate any currently active
+        bonuses on the active `Jugador` (useful after losing a life).
+        """
         # Recrear enemigos a su formación inicial
         self.enemigos.clear()
         self.crear_formacion_enemigos()
 
         # Limpiar disparos en pantalla
         self.disparos.clear()
+        # Limpiar también los disparos de enemigos para evitar que queden balas
+        # del intento anterior cuando se reinicia por pérdida de vida / cambio de turno.
+        try:
+            self.disparos_enemigos.clear()
+        except Exception:
+            pass
+
+        # Si se solicita, desactivar los bonuses activos del jugador (no las
+        # disponibilidades), por ejemplo: doble_puntos, escudo y tipo_disparo activo.
+        if clear_active_bonuses:
+            try:
+                # Doble puntos
+                if getattr(self.jugador, 'doble_puntos', False):
+                    self.jugador.doble_puntos = False
+                    self.jugador.doble_puntos_fin = 0
+                # Escudo
+                if getattr(self.jugador, 'escudo', 0) > 0:
+                    self.jugador.escudo = 0
+                # Tipo de disparo activo (area / rastreador) -> volver a normal
+                try:
+                    if getattr(self.jugador, 'tipo_disparo', None) in ('area', 'rastreador'):
+                        self.jugador.tipo_disparo = 'normal'
+                except Exception:
+                    pass
+            except Exception:
+                pass
 
         # Reiniciar bonus en escenario
         self.bonus_actual = None
