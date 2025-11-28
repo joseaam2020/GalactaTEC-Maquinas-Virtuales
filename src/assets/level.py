@@ -262,7 +262,6 @@ class Level:
 
     def show_player_lost_popup(self):
         """Muestra el popup cuando el jugador pierde una vida"""
-        # Si se marcó suprimir popup (p. ej. impacto absorbido por escudo), no mostrarlo
         if getattr(self, 'suppress_popup', False):
             try:
                 self.suppress_popup = False
@@ -280,7 +279,7 @@ class Level:
             pass
 
         # Asegurar que el botón cierre popup y cambie turno (o continue en singleplayer)
-        # Si el popup está bloqueado (ej. Game Over), no sobrescribimos el destino.
+        # Si el popup está bloqueado, no sobrescribimos el destino.
         if getattr(self, 'popup_locked', False):
             pass
         else:
@@ -300,14 +299,13 @@ class Level:
         button_y = self.popup_rect.bottom - 80
         self.popup_button.update_pos((button_x, button_y))
 
-        # Pausar la música o efectos si se desea (opcional)
 
     def cambiar_turno(self):
         """Cambia al siguiente jugador"""
         # Guardar estado del jugador actual
         self.guardar_estado_jugador(self.jugador_actual)
         
-        # Cambiar al siguiente jugador (soporta N jugadores) y saltar jugadores inactivos
+        # Cambiar al siguiente jugador y saltar jugadores inactivos
         next_index = self.jugador_actual
         found = False
         try:
@@ -779,7 +777,7 @@ class Level:
     def restart_level(self, clear_active_bonuses: bool = False):
         """Reinicia el estado del nivel actual (enemigos, disparos y bonus)
         Mantiene los atributos del jugador (puntos, vidas, bonus_teclas).
-        
+
         """
         # Recrear enemigos a su formación inicial
         self.enemigos.clear()
